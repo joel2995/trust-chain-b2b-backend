@@ -1,0 +1,37 @@
+import mongoose from "mongoose";
+
+const profileSchema = new mongoose.Schema({
+  companyName: String,
+  businessType: { type: String, enum: ["manufacturer", "trader", "service"] },
+  addressLine1: String,
+  addressLine2: String,
+  city: String,
+  state: String,
+  pin: String,
+  gstNumber: String,
+});
+
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phone: { type: String },
+    passwordHash: { type: String, required: true },
+
+    profile: profileSchema,
+
+   
+
+    buyerTrustScore: { type: Number, default: 100 },
+    vendorTrustScore: { type: Number, default: 100 },
+    overallTrustScore: { type: Number, default: 100 },
+
+    txCounts: {
+      buyer: { type: Number, default: 0 },
+      vendor: { type: Number, default: 0 },
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("User", userSchema);

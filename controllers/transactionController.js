@@ -3,26 +3,28 @@
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import crypto from "crypto";
+
 import { createHold, releaseHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
-import { updateTrustScores } from "../services/trustScoreService.js";
+import { updateTrustScoreForTransaction } from "../services/trustScoreService.js";
 import { storeProofOnChain } from "../services/blockchainService.js";
+
 import { HIGH_VALUE_THRESHOLD } from "../utils/constants.js";
 
-// -------------------------------------------
-// Create New Transaction (Buyer -> Vendor)
-// -------------------------------------------
+// ----------------------------------------------------
+// 1) CREATE NEW TRANSACTION (Buyer → Vendor)
+// ----------------------------------------------------
 export const createTransaction = async (req, res) => {
   try {
     const buyer = req.user;
-
-    if (!buyer.profile || !buyer.profile.addressLine1)
-      return res.status(400).json({ msg: "Complete profile to create orders" });
-
     const { vendorId, items } = req.body;
 
+    if (!items?.length)
+      return res.status(400).json({ msg: "Items required" });
+
     const vendor = await User.findById(vendorId);
-    if (!vendor) return res.status(404).json({ msg: "Vendor not found" });
+    if (!vendor)
+      return res.status(404).json({ msg: "Vendor not found" });
 
     const totalAmount = items.reduce(
       (s, it) => s + (it.qty || 1) * (it.price || 0),
@@ -34,10 +36,16 @@ export const createTransaction = async (req, res) => {
     const tx = await Transaction.create({
       orderId,
       buyerId: buyer._id,
-      vendorId: vendor._id,
+      vendorId,
       items,
       totalAmount,
-      highValue: totalAmount >= HIGH_VALUE_THRESHOLD
+      status: "created",
+      highValue: totalAmount >= HIGH_VALUE_THRESHOLD,
+      meta: {
+        deliveryOnTime: true,     // default, adjusted later
+        paymentOnTime: true,
+        dispute: false
+      }
     });
 
     // Create escrow hold (mock or Razorpay)
@@ -53,7 +61,7 @@ export const createTransaction = async (req, res) => {
     };
     await tx.save();
 
-    // Update transaction count for buyer
+    // Increase buyer transaction count
     buyer.txCounts.buyer += 1;
     await buyer.save();
 
@@ -65,14 +73,15 @@ export const createTransaction = async (req, res) => {
     });
 
     res.status(201).json({ msg: "Transaction created", tx });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// -------------------------------------------
-// Get All Transactions (admin/debug)
-// -------------------------------------------
+// ----------------------------------------------------
+// 2) GET ALL TRANSACTIONS
+// ----------------------------------------------------
 export const getTransactions = async (req, res) => {
   try {
     const txs = await Transaction.find().populate("buyerId vendorId");
@@ -82,16 +91,20 @@ export const getTransactions = async (req, res) => {
   }
 };
 
-// -------------------------------------------
-// Update Transaction Status
-// -------------------------------------------
+// ----------------------------------------------------
+// 3) UPDATE STATUS (accept → shipped → delivered → completed)
+// ----------------------------------------------------
 export const updateTransactionStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const tx = await Transaction.findById(req.params.id);
-    if (!tx) return res.status(404).json({ msg: "Transaction not found" });
 
+    if (!tx)
+      return res.status(404).json({ msg: "Transaction not found" });
+
+    // Update status
     tx.status = status;
+    tx.updatedAt = new Date();
     await tx.save();
 
     await logEvent({
@@ -101,62 +114,48 @@ export const updateTransactionStatus = async (req, res) => {
       payload: { status }
     });
 
-    // ---------------------------------------
-    // If status is COMPLETED
-    // ---------------------------------------
+    // ------------------------------------------
+    // If COMPLETED → trigger trust + escrow logic
+    // ------------------------------------------
     if (status === "completed") {
+
       // 1) Release escrow
       try {
-        const rel = await releaseHold({ holdId: tx.escrow.holdId });
-        tx.escrow.released = rel.released;
-        tx.escrow.releaseTxId = rel.releaseTxId;
+        const release = await releaseHold({ holdId: tx.escrow.holdId });
+
+        tx.escrow.released = release.released;
+        tx.escrow.releaseTxId = release.releaseTxId;
         tx.escrow.releasedAt = new Date();
+        await tx.save();
+
       } catch (err) {
         console.warn("Escrow release failed:", err.message);
       }
 
-      await tx.save();
+      // 2) TrustScore module handles scoring algorithm
+      try {
+        await updateTrustScoreForTransaction(tx);
+      } catch (err) {
+        console.warn("Trustscore update failed:", err.message);
+      }
 
-      // 2) TrustScore updates
-      const buyer = await User.findById(tx.buyerId);
-      const vendor = await User.findById(tx.vendorId);
-
-      const buyerNew = buyer.buyerTrustScore + 2;
-      const vendorNew = vendor.vendorTrustScore + 2;
-
-      await updateTrustScores({
-        userId: buyer._id,
-        role: "buyer",
-        oldScore: buyer.buyerTrustScore,
-        newScore: buyerNew,
-        reason: "completed_transaction",
-        txId: tx._id
-      });
-
-      await updateTrustScores({
-        userId: vendor._id,
-        role: "vendor",
-        oldScore: vendor.vendorTrustScore,
-        newScore: vendorNew,
-        reason: "completed_transaction",
-        txId: tx._id
-      });
-
-      // 3) Blockchain store (ONLY if high-value)
+      // 3) Blockchain write (only HIGH VALUE)
       if (tx.highValue) {
         try {
-          const result = await storeProofOnChain({
-            cid: tx?.ipfs?.invoiceCid || "no_cid_uploaded",
+          const blockchain = await storeProofOnChain({
+            cid: tx.ipfs?.invoiceCid || "no_invoice_uploaded",
             fileHash: crypto.randomBytes(16).toString("hex") // placeholder
           });
 
           tx.blockchain = {
-            txHash: result.txHash,
-            blockNumber: result.blockNumber,
+            txHash: blockchain.txHash,
+            blockNumber: blockchain.blockNumber,
             chain: "polygon",
             writtenAt: new Date()
           };
+
           await tx.save();
+
         } catch (err) {
           console.warn("Blockchain write failed:", err.message);
         }
@@ -164,7 +163,9 @@ export const updateTransactionStatus = async (req, res) => {
     }
 
     res.json({ msg: "Transaction updated", tx });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+

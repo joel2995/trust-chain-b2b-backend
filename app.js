@@ -14,7 +14,7 @@ import blockchainRoutes from "./routes/blockchainRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 import adminAuthRoutes from "./routes/adminAuthRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-
+import trustRoutes from "./routes/trustRoutes.js";
 
 
 dotenv.config();
@@ -38,7 +38,7 @@ app.use("/api/chain", blockchainRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/admin/auth", adminAuthRoutes); // public admin auth route (login)
 app.use("/api/admin", adminRoutes); // protected admin dashboard routes
-
+app.use("/api/trust", trustRoutes);
 
 
 // generic error handler

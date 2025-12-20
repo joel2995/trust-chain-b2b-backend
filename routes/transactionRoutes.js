@@ -1,8 +1,15 @@
 import express from "express";
-import { createTransaction, getTransactions, updateTransactionStatus } from "../controllers/transactionController.js";
+import {
+  createTransaction,
+  getTransactions,
+  updateTransactionStatus,
+} from "../controllers/transactionController.js";
 import { protect } from "../middleware/authMiddleware.js";
+
 const router = express.Router();
+
 router.post("/", protect, createTransaction);
 router.get("/", protect, getTransactions);
 router.put("/:id/status", protect, updateTransactionStatus);
+
 export default router;

@@ -1,4 +1,3 @@
-// backend/routes/adminRoutes.js
 import express from "express";
 import { adminProtect } from "../middleware/adminAuthMiddleware.js";
 import {
@@ -13,13 +12,14 @@ import {
 
 const router = express.Router();
 
-// All routes below require admin token
+// Admin protected routes
 router.use(adminProtect);
 
 router.get("/users", getAllUsers);
 router.get("/kyc/pending", getPendingKyc);
 router.put("/kyc/approve/:kycId", approveKyc);
 router.put("/kyc/reject/:kycId", rejectKyc);
+
 router.get("/transactions", getAllTransactions);
 router.get("/stats", getAdminStats);
 router.get("/events", getEvents);

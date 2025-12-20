@@ -7,12 +7,14 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on("error", (err) => {
-      console.log("❌ MongoDB error:", err);
+      console.error("❌ MongoDB error:", err);
     });
 
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, {
+      autoIndex: true,
+    });
   } catch (err) {
-    console.error("❌ Mongo connection error:", err.message);
+    console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
   }
 };

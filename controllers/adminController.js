@@ -1,34 +1,29 @@
-// backend/controllers/adminController.js
-
 import User from "../models/User.js";
 import KYC from "../models/KYC.js";
 import Transaction from "../models/Transaction.js";
 import Event from "../models/Event.js";
-import TrustScoreHistory from "../models/TrustScoreHistory.js";
 
-//
-// 1) List all users
-//
+// --------------------------------------------------
+// USERS
+// --------------------------------------------------
 export const getAllUsers = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 25;
-    const page = parseInt(req.query.page) || 1;
+    const limit = Number(req.query.limit || 25);
+    const page = Number(req.query.page || 1);
     const skip = (page - 1) * limit;
 
     const search = req.query.search;
-    let filter = {};
-
-    if (search) {
-      filter = {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } }
-        ]
-      };
-    }
+    const filter = search
+      ? {
+          $or: [
+            { name: new RegExp(search, "i") },
+            { email: new RegExp(search, "i") },
+          ],
+        }
+      : {};
 
     const [users, total] = await Promise.all([
-      User.find(filter).skip(skip).limit(limit).select("-passwordHash").lean(),
+      User.find(filter).skip(skip).limit(limit).select("-passwordHash"),
       User.countDocuments(filter),
     ]);
 
@@ -38,41 +33,35 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-//
-// 2) Get pending KYC requests
-//
-export const getPendingKyc = async (req, res) => {
+// --------------------------------------------------
+// KYC
+// --------------------------------------------------
+export const getPendingKyc = async (_, res) => {
   try {
-    const pending = await KYC.find({ status: "pending" })
-      .populate("userId", "name email profile")
-      .lean();
-
-    res.json(pending);
+    const list = await KYC.find({ status: "pending" }).populate(
+      "userId",
+      "name email profile"
+    );
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//
-// 3) Approve KYC
-//
 export const approveKyc = async (req, res) => {
   try {
-    const { kycId } = req.params;
-
     const kyc = await KYC.findByIdAndUpdate(
-      kycId,
+      req.params.kycId,
       { status: "verified", reviewedAt: new Date() },
       { new: true }
     ).populate("userId");
 
     if (!kyc) return res.status(404).json({ msg: "KYC not found" });
 
-    // Log event
     await Event.create({
       userId: req.admin._id,
       type: "kyc_verified",
-      payload: { kycId, userId: kyc.userId._id }
+      payload: { userId: kyc.userId._id },
     });
 
     res.json({ msg: "KYC approved", kyc });
@@ -81,111 +70,71 @@ export const approveKyc = async (req, res) => {
   }
 };
 
-//
-// 4) Reject KYC
-//
 export const rejectKyc = async (req, res) => {
   try {
-    const { kycId } = req.params;
-
     const kyc = await KYC.findByIdAndUpdate(
-      kycId,
+      req.params.kycId,
       { status: "rejected", reviewedAt: new Date() },
       { new: true }
-    ).populate("userId");
+    );
 
     if (!kyc) return res.status(404).json({ msg: "KYC not found" });
 
     await Event.create({
       userId: req.admin._id,
       type: "kyc_rejected",
-      payload: { kycId, userId: kyc.userId._id }
+      payload: { kycId: kyc._id },
     });
 
-    res.json({ msg: "KYC rejected", kyc });
+    res.json({ msg: "KYC rejected" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//
-// 5) All transactions list
-//
+// --------------------------------------------------
+// TRANSACTIONS
+// --------------------------------------------------
 export const getAllTransactions = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 25;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * limit;
-
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
-    if (req.query.userId) {
-      filter.$or = [
-        { buyerId: req.query.userId },
-        { vendorId: req.query.userId }
-      ];
-    }
 
-    const [txs, total] = await Promise.all([
-      Transaction.find(filter)
-        .skip(skip)
-        .limit(limit)
-        .populate("buyerId vendorId")
-        .lean(),
-      Transaction.countDocuments(filter),
-    ]);
+    const txs = await Transaction.find(filter)
+      .populate("buyerId vendorId")
+      .sort({ createdAt: -1 });
 
-    res.json({ txs, total, page, pages: Math.ceil(total / limit) });
+    res.json(txs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//
-// 6) Admin statistics
-//
-export const getAdminStats = async (req, res) => {
+// --------------------------------------------------
+// STATS
+// --------------------------------------------------
+export const getAdminStats = async (_, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalTx = await Transaction.countDocuments();
-    const completed = await Transaction.countDocuments({ status: "completed" });
-    const pendingKyc = await KYC.countDocuments({ status: "pending" });
-
-    const avgTrust = await User.aggregate([
-      {
-        $group: {
-          _id: null,
-          avgBuyer: { $avg: "$buyerTrustScore" },
-          avgVendor: { $avg: "$vendorTrustScore" }
-        }
-      }
+    const [users, txs, pendingKyc] = await Promise.all([
+      User.countDocuments(),
+      Transaction.countDocuments(),
+      KYC.countDocuments({ status: "pending" }),
     ]);
 
-    res.json({
-      totalUsers,
-      totalTx,
-      completed,
-      pendingKyc,
-      avgBuyerTrust: avgTrust[0]?.avgBuyer || 0,
-      avgVendorTrust: avgTrust[0]?.avgVendor || 0
-    });
+    res.json({ users, txs, pendingKyc });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//
-// 7) System Events list
-//
-export const getEvents = async (req, res) => {
+// --------------------------------------------------
+// EVENTS
+// --------------------------------------------------
+export const getEvents = async (_, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
-
     const events = await Event.find()
       .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
+      .limit(100);
     res.json(events);
   } catch (err) {
     res.status(500).json({ error: err.message });

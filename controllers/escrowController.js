@@ -1,61 +1,68 @@
-// controllers/escrowController.js
-import { createHold, releaseHold } from "../services/escrowService.js";
 import Transaction from "../models/Transaction.js";
+import User from "../models/User.js";
+import crypto from "crypto";
+import { createHold, releaseHold } from "../services/escrowService.js";
+import { updateTrustScoreForTransaction } from "../services/trustScoreService.js";
 import { logEvent } from "../services/eventLogger.js";
+import { HIGH_VALUE_THRESHOLD } from "../utils/constants.js";
 
-export const createEscrowHold = async (req, res) => {
+export const createTransaction = async (req, res) => {
   try {
-    const { transactionId } = req.body;
-    if (!transactionId) return res.status(400).json({ msg: "transactionId required" });
+    const buyer = req.user;
+    const { vendorId, items } = req.body;
 
-    const tx = await Transaction.findById(transactionId);
-    if (!tx) return res.status(404).json({ msg: "Transaction not found" });
+    const vendor = await User.findById(vendorId);
+    if (!vendor) return res.status(404).json({ msg: "Vendor not found" });
 
-    // Prevent creating hold twice
-    if (tx.escrow && tx.escrow.holdId) {
-      return res.json({ msg: "Escrow already created", escrow: tx.escrow });
-    }
+    const totalAmount = items.reduce(
+      (sum, i) => sum + i.qty * i.price,
+      0
+    );
 
-    const hold = await createHold({ transactionId: tx._id, amount: tx.totalAmount });
+    const tx = await Transaction.create({
+      orderId: `ORD_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`,
+      buyerId: buyer._id,
+      vendorId,
+      items,
+      totalAmount,
+      highValue: totalAmount >= HIGH_VALUE_THRESHOLD,
+    });
 
-    tx.escrow = {
-      provider: hold.provider,
-      holdId: hold.holdId,
-      amountHeld: hold.amountHeld,
-      released: false,
-    };
+    const hold = await createHold({
+      transactionId: tx._id,
+      amount: totalAmount,
+    });
+
+    tx.escrow = hold;
     await tx.save();
 
-    await logEvent({ transactionId: tx._id, userId: req.user._id, type: "escrow_created", payload: { holdId: hold.holdId } });
+    await logEvent({
+      transactionId: tx._id,
+      userId: buyer._id,
+      type: "transaction_created",
+    });
 
-    res.status(201).json({ msg: "Escrow created", escrow: tx.escrow });
+    res.status(201).json(tx);
   } catch (err) {
-    console.error("createEscrowHold:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
-export const releaseEscrow = async (req, res) => {
+export const updateTransactionStatus = async (req, res) => {
   try {
-    const { transactionId } = req.body;
-    if (!transactionId) return res.status(400).json({ msg: "transactionId required" });
-
-    const tx = await Transaction.findById(transactionId);
+    const tx = await Transaction.findById(req.params.id);
     if (!tx) return res.status(404).json({ msg: "Transaction not found" });
-    if (!tx.escrow || !tx.escrow.holdId) return res.status(400).json({ msg: "No hold to release" });
 
-    const rel = await releaseHold({ holdId: tx.escrow.holdId });
-
-    tx.escrow.released = !!rel.released;
-    tx.escrow.releaseTxId = rel.releaseTxId;
-    tx.escrow.releasedAt = new Date();
+    tx.status = req.body.status;
     await tx.save();
 
-    await logEvent({ transactionId: tx._id, userId: req.user._id, type: "escrow_released", payload: { releaseTxId: rel.releaseTxId } });
+    if (tx.status === "completed") {
+      await releaseHold({ holdId: tx.escrow.holdId });
+      await updateTrustScoreForTransaction(tx);
+    }
 
-    res.json({ msg: "Escrow released", escrow: tx.escrow });
+    res.json(tx);
   } catch (err) {
-    console.error("releaseEscrow:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

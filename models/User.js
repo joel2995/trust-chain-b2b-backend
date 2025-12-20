@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 
 const profileSchema = new mongoose.Schema({
   companyName: String,
-  businessType: { type: String, enum: ["manufacturer", "trader", "service"] },
+  businessType: {
+    type: String,
+    enum: ["manufacturer", "trader", "service"],
+  },
   addressLine1: String,
   addressLine2: String,
   city: String,
@@ -14,13 +17,32 @@ const profileSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phone: { type: String },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    phone: String,
     passwordHash: { type: String, required: true },
 
     profile: profileSchema,
 
-   
+    roleMode: {
+      type: String,
+      enum: ["buyer", "vendor"],
+      default: "buyer",
+    },
+
+    walletAddress: String,
+
+    kycStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+    },
 
     buyerTrustScore: { type: Number, default: 100 },
     vendorTrustScore: { type: Number, default: 100 },

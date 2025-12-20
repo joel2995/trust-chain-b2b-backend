@@ -4,6 +4,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 
+import helmet from "helmet";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
+
+
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import kycRoutes from "./routes/kycRoutes.js";
@@ -21,11 +26,24 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // health
 app.get("/", (req, res) => res.json({ status: "TrustChain API up" }));
+
+app.use(helmet());
+app.use(morgan("dev"));
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+}));
+
 
 // API routes
 app.use("/api/auth", authRoutes);

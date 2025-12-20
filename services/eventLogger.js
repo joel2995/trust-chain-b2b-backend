@@ -5,17 +5,17 @@ export const logEvent = async ({
   transactionId = null,
   userId = null,
   type,
-  payload = {}
+  payload = {},
 }) => {
   try {
     await Event.create({
       transactionId,
       userId,
-      type,
+      type: type.toUpperCase(),
       payload,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
   } catch (err) {
-    console.warn("⚠️ Event log failed:", err.message);
+    console.warn("⚠ Event log failed:", err.message);
   }
 };

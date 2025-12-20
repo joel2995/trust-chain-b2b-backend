@@ -6,15 +6,15 @@ export const storeProofOnChain = async ({ cid, fileHash }) => {
     const { wallet } = getProviderAndWallet();
     const contract = getProofContract(wallet);
 
-    // Ethereum — ethers v6 syntax
     const tx = await contract.storeProof(cid, fileHash);
     const receipt = await tx.wait();
 
     return {
       txHash: receipt.hash,
-      blockNumber: receipt.blockNumber
+      blockNumber: receipt.blockNumber,
+      chain: process.env.BLOCKCHAIN_NETWORK || "ethereum",
+      writtenAt: new Date(),
     };
-
   } catch (err) {
     console.warn("⚠ Blockchain write failed:", err.message);
     throw err;

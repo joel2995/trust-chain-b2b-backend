@@ -1,47 +1,67 @@
 import fs from "fs";
+import crypto from "crypto";
 import { pinFileToPinata } from "../config/ipfs.js";
 import Transaction from "../models/Transaction.js";
 import { storeProofOnChain } from "../services/blockchainService.js";
-import crypto from "crypto";
 
-
+// -------------------------------------
+// UPLOAD DOCUMENT TO IPFS
+// -------------------------------------
 export const uploadToIPFS = async (req, res) => {
-try {
-if (!req.file) return res.status(400).json({ error: "No file provided" });
+  try {
+    if (!req.file)
+      return res.status(400).json({ msg: "No file uploaded" });
 
+    const filePath = req.file.path;
+    const buffer = fs.readFileSync(filePath);
+    const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
 
-const filePath = req.file.path;
-const pin = await pinFileToPinata(filePath);
-const fileBuffer = fs.readFileSync(filePath);
-const fileHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
-fs.unlinkSync(filePath);
+    const pin = await pinFileToPinata(filePath);
+    fs.unlinkSync(filePath);
 
+    const cid = pin.IpfsHash;
+    const ipfsURL = `https://ipfs.io/ipfs/${cid}`;
 
-const fileCID = pin.IpfsHash;
-const ipfsURL = `https://ipfs.io/ipfs/${fileCID}`;
+    // Attach to transaction (if provided)
+    const { transactionId, docType, writeChain } = req.body;
 
+    let chainProof = null;
 
-// attach to transaction if provided
-const { transactionId, type } = req.body;
-if (transactionId) {
-await Transaction.findByIdAndUpdate(transactionId, { $push: { proofs: { cid: fileCID, url: ipfsURL, type: type || "delivery", fileHash } } });
-}
+    if (transactionId) {
+      const tx = await Transaction.findById(transactionId);
+      if (!tx)
+        return res.status(404).json({ msg: "Transaction not found" });
 
+      if (docType === "invoice") tx.ipfs.invoiceCid = cid;
+      else tx.ipfs.deliveryProofCid = cid;
 
-// store on chain for high-value transactions
-try {
-if (req.body.writeChain === "true") {
-const result = await storeProofOnChain({ cid: fileCID, fileHash });
-return res.json({ msg: "Uploaded & stored on chain", fileCID, ipfsURL, fileHash, chainTx: result });
-}
-} catch (err) {
-console.warn("Chain write failed:", err.message);
-}
+      await tx.save();
 
+      // Optional blockchain write (high-value / manual trigger)
+      if (writeChain === "true") {
+        try {
+          chainProof = await storeProofOnChain({ cid, fileHash });
+          tx.blockchain = {
+            ...tx.blockchain,
+            txHash: chainProof.txHash,
+            blockNumber: chainProof.blockNumber,
+            writtenAt: new Date(),
+          };
+          await tx.save();
+        } catch (err) {
+          console.warn("Blockchain write skipped:", err.message);
+        }
+      }
+    }
 
-res.json({ msg: "Uploaded to IPFS", fileCID, ipfsURL, fileHash });
-} catch (err) {
-console.error(err);
-res.status(500).json({ error: err.message });
-}
+    res.json({
+      msg: "File uploaded to IPFS",
+      cid,
+      ipfsURL,
+      fileHash,
+      blockchain: chainProof,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

@@ -32,11 +32,12 @@ export const uploadKycDoc = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    res.json({
-      msg: "KYC document uploaded",
-      cid,
-      status: kyc.status,
-    });
+    res.status(201).json({
+  msg: "KYC document uploaded",
+  kycId: kyc._id,
+  cid,
+  status: kyc.status,
+});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

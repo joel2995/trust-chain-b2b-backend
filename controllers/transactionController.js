@@ -51,18 +51,27 @@ export const createTransaction = async (req, res) => {
 export const updateTransactionStatus = async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.id);
-    if (!tx) return res.status(404).json({ msg: "Transaction not found" });
+    if (!tx) {
+      return res.status(404).json({ msg: "Transaction not found" });
+    }
 
     tx.status = req.body.status;
     await tx.save();
 
     if (tx.status === "completed") {
+      if (!tx.escrow?.holdId) {
+        throw new Error("Escrow holdId missing");
+      }
+
       await releaseHold({ holdId: tx.escrow.holdId });
       await updateTrustScoreForTransaction(tx);
     }
 
     res.json(tx);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Update transaction failed:", err);
+    res.status(500).json({
+      error: err.message || "Internal server error",
+    });
   }
 };

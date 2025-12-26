@@ -19,13 +19,13 @@ const historySchema = new mongoose.Schema({
   reason: {
     type: String,
     enum: [
-      "ON_TIME_DELIVERY",
-      "PAYMENT_DELAY",
-      "DISPUTE_RAISED",
-      "DISPUTE_RESOLVED",
-      "ESCROW_SUCCESS",
-      "ESCROW_FAILURE",
-      "ADMIN_ADJUSTMENT",
+       "transaction_completed",
+    "on_time_delivery",
+    "late_delivery",
+    "payment_success",
+    "payment_failed",
+    "dispute",
+    "manual_adjustment"
     ],
   },
 

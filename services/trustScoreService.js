@@ -5,6 +5,51 @@ import axios from "axios";
 
 const clamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
 
+export async function recomputeTrustScores({ userId = null }) {
+  const query = userId ? { userId } : {};
+
+  const histories = await TrustScoreHistory.find(query)
+    .sort({ timestamp: 1 })
+    .lean();
+
+  const userScores = new Map();
+
+  for (const h of histories) {
+    if (!userScores.has(h.userId.toString())) {
+      userScores.set(h.userId.toString(), {
+        buyer: 50,
+        vendor: 50,
+      });
+    }
+
+    const scores = userScores.get(h.userId.toString());
+    if (h.role === "buyer") scores.buyer = h.newScore;
+    if (h.role === "vendor") scores.vendor = h.newScore;
+  }
+
+  const updates = [];
+
+  for (const [uid, scores] of userScores.entries()) {
+    const overall = clamp(scores.buyer * 0.6 + scores.vendor * 0.4);
+
+    updates.push(
+      User.findByIdAndUpdate(uid, {
+        buyerTrustScore: scores.buyer,
+        vendorTrustScore: scores.vendor,
+        overallTrustScore: overall,
+      })
+    );
+  }
+
+  await Promise.all(updates);
+
+  return {
+    recomputedUsers: updates.length,
+    target: userId ? "single user" : "all users",
+  };
+}
+
+
 export const DEFAULT_RULES = {
   onTimeDelivery: 2,
   lateDelivery: -4,

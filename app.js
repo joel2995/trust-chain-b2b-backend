@@ -56,6 +56,7 @@ app.use("/api/admin/auth", adminAuthRoutes); // public admin auth route (login)
 app.use("/api/admin", adminRoutes); // protected admin dashboard routes
 app.use("/api/trust", trustRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 
 

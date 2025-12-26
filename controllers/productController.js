@@ -9,19 +9,21 @@ export const createProduct = async (req, res) => {
   res.status(201).json(product);
 };
 
-// Get all products (marketplace)
+// Marketplace list
 export const getProducts = async (req, res) => {
-  const products = await Product.find({ active: true }).populate("vendorId", "name overallTrustScore");
+  const products = await Product.find({ active: true })
+    .populate("vendorId", "name overallTrustScore");
   res.json(products);
 };
 
-// Get single product
+// Single product
 export const getProductById = async (req, res) => {
-  const product = await Product.findById(req.params.id).populate("vendorId", "name overallTrustScore");
+  const product = await Product.findById(req.params.id)
+    .populate("vendorId", "name overallTrustScore");
   res.json(product);
 };
 
-// Vendor updates product
+// Vendor update
 export const updateProduct = async (req, res) => {
   const product = await Product.findOneAndUpdate(
     { _id: req.params.id, vendorId: req.user._id },
@@ -31,8 +33,11 @@ export const updateProduct = async (req, res) => {
   res.json(product);
 };
 
-// Vendor deletes product
+// Vendor delete
 export const deleteProduct = async (req, res) => {
-  await Product.findOneAndDelete({ _id: req.params.id, vendorId: req.user._id });
-  res.json({ msg: "Product removed" });
+  await Product.findOneAndDelete({
+    _id: req.params.id,
+    vendorId: req.user._id,
+  });
+  res.json({ msg: "Product deleted" });
 };

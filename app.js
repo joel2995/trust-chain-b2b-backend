@@ -19,7 +19,10 @@ import blockchainRoutes from "./routes/blockchainRoutes.js";
 import adminAuthRoutes from "./routes/adminAuthRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import trustRoutes from "./routes/trustRoutes.js";
-
+import productRoutes from "./routes/productRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -57,13 +60,15 @@ app.use("/api/admin", adminRoutes); // protected admin dashboard routes
 app.use("/api/trust", trustRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-
-
-
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/payments", paymentRoutes);
 // generic error handler
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
 });
 
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", service: "TrustChain Backend" });
+});
 export default app;

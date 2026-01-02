@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["buyer", "vendor"],
-      default: "buyer",
+      default: "vendor",
     },
 
     walletAddress: String,

@@ -158,3 +158,34 @@ export const getEvents = async (_, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const setUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!["buyer", "vendor"].includes(role)) {
+      return res.status(400).json({ msg: "Invalid role" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({
+      msg: "Role updated successfully",
+      userId: user._id,
+      role: user.role,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

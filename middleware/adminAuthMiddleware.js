@@ -1,33 +1,25 @@
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import Admin from "../models/Admin.js";
 
-export const protect = async (req, res, next) => {
+export const adminProtect = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ msg: "Authorization token missing" });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ msg: "Admin token missing" });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
 
-    // 🔐 Token type hardening
-    if (decoded.type !== "user") {
-      return res.status(401).json({ msg: "Invalid token type" });
+    const admin = await Admin.findById(decoded.id).select("-passwordHash");
+    if (!admin) {
+      return res.status(401).json({ msg: "Admin not found" });
     }
 
-    const user = await User.findById(decoded.id).select("-passwordHash");
-
-    if (!user) {
-      return res.status(401).json({ msg: "User not found" });
-    }
-
-    req.user = user;
+    req.admin = admin;
     next();
   } catch (err) {
     return res.status(401).json({
-      msg: "Unauthorized",
+      msg: "Unauthorized admin",
       error: err.message,
     });
   }

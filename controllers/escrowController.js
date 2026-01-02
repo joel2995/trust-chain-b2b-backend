@@ -7,6 +7,8 @@ import { logEvent } from "../services/eventLogger.js";
  * @route   POST /api/escrow/hold
  * @access  Buyer only
  */
+
+
 export const createEscrowHold = async (req, res) => {
   try {
     const { transactionId } = req.body;
@@ -40,6 +42,12 @@ export const createEscrowHold = async (req, res) => {
         msg: "Escrow cannot be created in current transaction state",
       });
     }
+    if (tx.payment?.status !== "paid") {
+  return res.status(400).json({
+    msg: "Payment must be completed before creating escrow",
+  });
+}
+
 
     const hold = await createHold({
       transactionId: tx._id,

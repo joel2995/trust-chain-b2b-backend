@@ -1,11 +1,11 @@
 import Transaction from "../models/Transaction.js";
-import { createHold, releaseHold } from "../services/escrowService.js";
+import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
 
 /**
- * @desc    Create escrow hold for a transaction
+ * @desc    Create escrow hold (after payment)
  * @route   POST /api/escrow/hold
- * @access  Protected
+ * @access  Buyer only
  */
 export const createEscrowHold = async (req, res) => {
   try {
@@ -15,12 +15,19 @@ export const createEscrowHold = async (req, res) => {
       return res.status(400).json({ msg: "transactionId is required" });
     }
 
+    if (req.user.role !== "buyer") {
+      return res.status(403).json({ msg: "Only buyer can create escrow" });
+    }
+
     const tx = await Transaction.findById(transactionId);
     if (!tx) {
       return res.status(404).json({ msg: "Transaction not found" });
     }
 
-    // Prevent duplicate escrow creation
+    if (tx.buyerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: "Unauthorized" });
+    }
+
     if (tx.escrow?.holdId) {
       return res.json({
         msg: "Escrow already exists",
@@ -28,7 +35,12 @@ export const createEscrowHold = async (req, res) => {
       });
     }
 
-    // Create escrow hold (mock now, Razorpay later)
+    if (!["created", "accepted"].includes(tx.status)) {
+      return res.status(400).json({
+        msg: "Escrow cannot be created in current transaction state",
+      });
+    }
+
     const hold = await createHold({
       transactionId: tx._id,
       amount: tx.totalAmount,
@@ -46,76 +58,19 @@ export const createEscrowHold = async (req, res) => {
     await logEvent({
       transactionId: tx._id,
       userId: req.user._id,
-      type: "escrow_created",
+      type: "ESCROW_CREATED",
       payload: {
         holdId: hold.holdId,
         amount: hold.amountHeld,
       },
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       msg: "Escrow hold created",
       escrow: tx.escrow,
     });
   } catch (err) {
-    console.error("createEscrowHold error:", err.message);
-    return res.status(500).json({ error: "Failed to create escrow" });
+    console.error("createEscrowHold error:", err);
+    res.status(500).json({ error: "Failed to create escrow" });
   }
 };
-
-/**
- * @desc    Release escrow after delivery confirmation
- * @route   POST /api/escrow/release
- * @access  Protected
- */
-export const releaseEscrow = async (req, res) => {
-  try {
-    const { transactionId } = req.body;
-
-    if (!transactionId) {
-      return res.status(400).json({ msg: "transactionId is required" });
-    }
-
-    const tx = await Transaction.findById(transactionId);
-    if (!tx) {
-      return res.status(404).json({ msg: "Transaction not found" });
-    }
-
-    if (!tx.escrow?.holdId) {
-      return res.status(400).json({ msg: "No escrow hold found" });
-    }
-
-    if (tx.escrow.released) {
-      return res.json({
-        msg: "Escrow already released",
-        escrow: tx.escrow,
-      });
-    }
-
-    const release = await releaseHold({ holdId: tx.escrow.holdId });
-
-    tx.escrow.released = true;
-    tx.escrow.releaseTxId = release.releaseTxId;
-    tx.escrow.releasedAt = new Date();
-
-    await tx.save();
-
-    await logEvent({
-      transactionId: tx._id,
-      userId: req.user._id,
-      type: "escrow_released",
-      payload: {
-        releaseTxId: release.releaseTxId,
-      },
-    });
-
-    return res.json({
-      msg: "Escrow released successfully",
-      escrow: tx.escrow,
-    });
-  } catch (err) {
-    console.error("releaseEscrow error:", err.message);
-    return res.status(500).json({ error: "Failed to release escrow" });
-  }
-};
-  

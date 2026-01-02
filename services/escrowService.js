@@ -1,6 +1,4 @@
 // services/escrowService.js
-// MOCK ESCROW SERVICE – Razorpay ready
-
 export const createHold = async ({ transactionId, amount }) => {
   return {
     provider: "mock",

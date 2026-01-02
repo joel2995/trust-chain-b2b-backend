@@ -30,6 +30,7 @@ const transactionSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     currency: { type: String, default: "INR" },
 
+    /* ---------------- TRANSACTION STATUS ---------------- */
     status: {
       type: String,
       enum: [
@@ -45,6 +46,24 @@ const transactionSchema = new mongoose.Schema(
       index: true,
     },
 
+    /* ---------------- PAYMENT (RAZORPAY) ---------------- */
+    payment: {
+      provider: {
+        type: String,
+        enum: ["razorpay"],
+        default: "razorpay",
+      },
+      orderId: String,      // Razorpay order_id
+      paymentId: String,   // Razorpay payment_id
+      status: {
+        type: String,
+        enum: ["pending", "paid", "failed"],
+        default: "pending",
+      },
+      paidAt: Date,
+    },
+
+    /* ---------------- ESCROW ---------------- */
     escrow: {
       provider: {
         type: String,
@@ -58,6 +77,7 @@ const transactionSchema = new mongoose.Schema(
       releasedAt: Date,
     },
 
+    /* ---------------- TRUST ---------------- */
     trustImpact: {
       buyerDelta: { type: Number, default: 0 },
       vendorDelta: { type: Number, default: 0 },
@@ -65,11 +85,13 @@ const transactionSchema = new mongoose.Schema(
 
     highValue: { type: Boolean, default: false },
 
+    /* ---------------- IPFS ---------------- */
     ipfs: {
       invoiceCid: String,
       deliveryProofCid: String,
     },
 
+    /* ---------------- BLOCKCHAIN ---------------- */
     blockchain: {
       txHash: String,
       blockNumber: Number,

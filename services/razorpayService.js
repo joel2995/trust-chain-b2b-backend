@@ -1,13 +1,8 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-console.log("RZP ENV CHECK:", {
-  id: process.env.RAZORPAY_KEY_ID,
-  secret: process.env.RAZORPAY_KEY_SECRET ? "OK" : "MISSING",
-});
-
 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  throw new Error("Razorpay ENV not loaded BEFORE service import");
+  throw new Error("Razorpay keys missing");
 }
 
 export const razorpay = new Razorpay({
@@ -15,20 +10,26 @@ export const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-export const createOrder = async (amount) => {
+export const createRazorpayOrder = async ({ amount, currency = "INR", receipt }) => {
   return razorpay.orders.create({
-    amount: amount * 100,
-    currency: "INR",
+    amount: amount * 100, // INR → paise
+    currency,
+    receipt,
     payment_capture: 1,
   });
 };
 
-export const verifySignature = ({ order_id, payment_id, signature }) => {
-  const body = order_id + "|" + payment_id;
-  const expected = crypto
+export const verifyRazorpaySignature = ({
+  orderId,
+  paymentId,
+  signature,
+}) => {
+  const body = `${orderId}|${paymentId}`;
+
+  const expectedSignature = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
     .update(body)
     .digest("hex");
 
-  return expected === signature;
+  return expectedSignature === signature;
 };

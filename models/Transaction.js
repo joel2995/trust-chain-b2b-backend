@@ -1,22 +1,10 @@
 import mongoose from "mongoose";
 
-const proofSchema = new mongoose.Schema({
-  cid: { type: String },
-  url: { type: String },
-  type: {
-    type: String,
-    enum: ["invoice", "delivery"],
-    default: "delivery",
-  },
-  uploadedAt: { type: Date, default: Date.now },
-  fileHash: String,
-});
-
 const itemSchema = new mongoose.Schema({
   sku: String,
   name: String,
-  qty: Number,
-  price: Number,
+  qty: { type: Number, required: true },
+  price: { type: Number, required: true },
 });
 
 const transactionSchema = new mongoose.Schema(

@@ -3,6 +3,7 @@ import {
   createRazorpayOrder,
   verifyRazorpaySignature,
 } from "../services/razorpayService.js";
+import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
 
 /**
@@ -21,7 +22,7 @@ export const createPaymentOrder = async (req, res) => {
     }
 
     if (tx.payment?.status === "paid") {
-      return res.json({ msg: "Already paid" });
+      return res.status(400).json({ msg: "Transaction already paid" });
     }
 
     const order = await createRazorpayOrder({
@@ -77,9 +78,25 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ msg: "Invalid payment signature" });
     }
 
+    // ✅ MARK PAYMENT SUCCESS
     tx.payment.status = "paid";
     tx.payment.paymentId = razorpay_payment_id;
     tx.payment.paidAt = new Date();
+
+    // 🔒 AUTO CREATE ESCROW (ONCE)
+    if (!tx.escrow?.holdId) {
+      const hold = await createHold({
+        transactionId: tx._id,
+        amount: tx.totalAmount,
+      });
+
+      tx.escrow = {
+        provider: "razorpay",
+        holdId: hold.holdId,
+        amountHeld: hold.amountHeld,
+        released: false,
+      };
+    }
 
     await tx.save();
 

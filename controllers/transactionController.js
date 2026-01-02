@@ -1,7 +1,7 @@
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import crypto from "crypto";
-import { createHold, releaseHold } from "../services/escrowService.js";
+import { releaseHold } from "../services/escrowService.js";
 import { updateTrustScoreForTransaction } from "../services/trustScoreService.js";
 import { logEvent } from "../services/eventLogger.js";
 import { HIGH_VALUE_THRESHOLD } from "../utils/constants.js";
@@ -42,27 +42,16 @@ export const createTransaction = async (req, res) => {
       highValue: totalAmount >= HIGH_VALUE_THRESHOLD,
     });
 
-    const hold = await createHold({
-      transactionId: tx._id,
-      amount: totalAmount,
-    });
-
-    tx.escrow = {
-      ...hold,
-      amountHeld: totalAmount,
-    };
-
-    await tx.save();
-
     await logEvent({
       transactionId: tx._id,
       userId: buyer._id,
-      type: "transaction_created",
+      type: "TRANSACTION_CREATED",
     });
 
     res.status(201).json(tx);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Create transaction failed:", err);
+    res.status(500).json({ error: "Failed to create transaction" });
   }
 };
 
@@ -82,7 +71,17 @@ export const updateTransactionStatus = async (req, res) => {
       });
     }
 
-    // Authorization rules
+    // 🔐 PAYMENT GATE (CRITICAL)
+    if (
+      ["accepted", "shipped", "delivered", "completed"].includes(nextStatus) &&
+      tx.payment?.status !== "paid"
+    ) {
+      return res.status(400).json({
+        msg: "Payment required before proceeding with transaction",
+      });
+    }
+
+    // 🔐 AUTHORIZATION RULES
     if (
       (nextStatus === "accepted" || nextStatus === "shipped") &&
       req.user._id.toString() !== tx.vendorId.toString()
@@ -99,9 +98,10 @@ export const updateTransactionStatus = async (req, res) => {
 
     tx.status = nextStatus;
 
+    // 🔓 FINAL SETTLEMENT
     if (nextStatus === "completed") {
-      if (!tx.escrow?.holdId) {
-        throw new Error("Escrow holdId missing");
+      if (!tx.escrow?.holdId || tx.escrow.released) {
+        throw new Error("Invalid escrow state");
       }
 
       await releaseHold({ holdId: tx.escrow.holdId });
@@ -110,11 +110,10 @@ export const updateTransactionStatus = async (req, res) => {
       tx.escrow.releasedAt = new Date();
 
       const deltas = await updateTrustScoreForTransaction(tx);
-      tx.trustImpact = deltas || tx.trustImpact;
+      tx.trustImpact = deltas;
     }
 
     await tx.save();
-
     res.json(tx);
   } catch (err) {
     console.error("Update transaction failed:", err);

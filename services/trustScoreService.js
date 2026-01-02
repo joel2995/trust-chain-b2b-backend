@@ -143,17 +143,31 @@ export async function recomputeTrustScores({ userId = null }) {
       .sort({ timestamp: 1 })
       .lean();
 
+    if (!histories.length) {
+      return { msg: "No TrustScore history found" };
+    }
+
+    // 🔹 Collect unique userIds
+    const userIds = [...new Set(histories.map(h => h.userId.toString()))];
+
+    // 🔹 Fetch users in ONE query
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+
     const userScores = new Map();
 
     for (const h of histories) {
-      if (!userScores.has(h.userId.toString())) {
-        userScores.set(h.userId.toString(), {
-          buyer: 100,
-          vendor: 100,
+      const uid = h.userId.toString();
+
+      if (!userScores.has(uid)) {
+        const user = userMap.get(uid);
+        userScores.set(uid, {
+          buyer: user?.buyerTrustScore ?? 100,
+          vendor: user?.vendorTrustScore ?? 100,
         });
       }
 
-      const scores = userScores.get(h.userId.toString());
+      const scores = userScores.get(uid);
       if (h.role === "buyer") scores.buyer = h.newScore;
       if (h.role === "vendor") scores.vendor = h.newScore;
     }
@@ -161,7 +175,10 @@ export async function recomputeTrustScores({ userId = null }) {
     const updates = [];
 
     for (const [uid, scores] of userScores.entries()) {
-      const overall = clamp(scores.buyer * 0.6 + scores.vendor * 0.4);
+      const overall = Math.max(
+        0,
+        Math.min(100, Math.round(scores.buyer * 0.6 + scores.vendor * 0.4))
+      );
 
       updates.push(
         User.findByIdAndUpdate(uid, {
@@ -179,6 +196,7 @@ export async function recomputeTrustScores({ userId = null }) {
       target: userId ? "single user" : "all users",
     };
   } catch (err) {
+    console.error("🔥 TrustScore recompute error:", err);
     throw new Error("TrustScore recomputation failed");
   }
 }

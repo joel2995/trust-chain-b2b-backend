@@ -17,8 +17,8 @@ router.use(adminProtect);
 
 router.get("/users", getAllUsers);
 router.get("/kyc/pending", getPendingKyc);
-router.put("/kyc/approve/:kycId", approveKyc);
-router.put("/kyc/reject/:kycId", rejectKyc);
+router.put("/kyc/approve/:userId", approveKyc);
+router.put("/kyc/reject/:userId", rejectKyc);
 
 router.get("/transactions", getAllTransactions);
 router.get("/stats", getAdminStats);

@@ -50,25 +50,43 @@ export const getPendingKyc = async (_, res) => {
 
 export const approveKyc = async (req, res) => {
   try {
-    const kyc = await KYC.findByIdAndUpdate(
-      req.params.kycId,
-      { status: "verified", reviewedAt: new Date() },
-      { new: true }
-    ).populate("userId");
+    const { userId } = req.params;
 
-    if (!kyc) return res.status(404).json({ msg: "KYC not found" });
+    // Find KYC by USER ID (not KYC _id)
+    const kyc = await KYC.findOne({ userId });
+
+    if (!kyc) {
+      return res.status(404).json({ msg: "KYC not found" });
+    }
+
+    // Update KYC status
+    kyc.status = "verified";
+    kyc.reviewedAt = new Date();
+    await kyc.save();
+
+    // Update User KYC status
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { kycStatus: "verified" },
+      { new: true }
+    );
 
     await Event.create({
       userId: req.admin._id,
-      type: "kyc_verified",
-      payload: { userId: kyc.userId._id },
+      type: "KYC_VERIFIED",
+      payload: { userId },
     });
 
-    res.json({ msg: "KYC approved", kyc });
+    res.json({
+      msg: "KYC approved successfully",
+      userId,
+      kycStatus: user.kycStatus,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const rejectKyc = async (req, res) => {
   try {

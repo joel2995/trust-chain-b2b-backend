@@ -6,18 +6,17 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// CREATE ORDER
+// CREATE ORDER (AUTHORIZE ONLY)
 export const createRazorpayOrder = async ({ amount, receipt }) => {
   return await razorpay.orders.create({
-    amount: amount * 100, // IMPORTANT: convert to paise
+    amount: amount * 100, // paise
     currency: "INR",
     receipt,
-    payment_capture: 0, // escrow-style
+    payment_capture: 0, // 🔒 manual capture (ESCROW)
   });
 };
 
 // VERIFY SIGNATURE
-
 export const verifyRazorpaySignature = ({
   orderId,
   paymentId,
@@ -34,4 +33,13 @@ export const verifyRazorpaySignature = ({
     .digest("hex");
 
   return expected === signature;
+};
+
+// 🔓 REAL ESCROW RELEASE (CAPTURE MONEY)
+export const capturePayment = async ({ paymentId, amount }) => {
+  return await razorpay.payments.capture(
+    paymentId,
+    amount * 100,
+    "INR"
+  );
 };

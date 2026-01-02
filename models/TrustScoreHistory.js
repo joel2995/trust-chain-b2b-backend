@@ -4,6 +4,7 @@ const historySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+    required: true,
     index: true,
   },
 
@@ -13,20 +14,21 @@ const historySchema = new mongoose.Schema({
     required: true,
   },
 
-  oldScore: Number,
-  newScore: Number,
+  oldScore: { type: Number, required: true },
+  newScore: { type: Number, required: true },
 
   reason: {
     type: String,
     enum: [
-       "transaction_completed",
-    "on_time_delivery",
-    "late_delivery",
-    "payment_success",
-    "payment_failed",
-    "dispute",
-    "manual_adjustment"
+      "transaction_completed",
+      "on_time_delivery",
+      "late_delivery",
+      "payment_success",
+      "payment_failed",
+      "dispute",
+      "manual_adjustment",
     ],
+    required: true,
   },
 
   txId: {

@@ -5,58 +5,12 @@ import axios from "axios";
 
 const clamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
 
-export async function recomputeTrustScores({ userId = null }) {
-  const query = userId ? { userId } : {};
-
-  const histories = await TrustScoreHistory.find(query)
-    .sort({ timestamp: 1 })
-    .lean();
-
-  const userScores = new Map();
-
-  for (const h of histories) {
-    if (!userScores.has(h.userId.toString())) {
-      userScores.set(h.userId.toString(), {
-        buyer: 50,
-        vendor: 50,
-      });
-    }
-
-    const scores = userScores.get(h.userId.toString());
-    if (h.role === "buyer") scores.buyer = h.newScore;
-    if (h.role === "vendor") scores.vendor = h.newScore;
-  }
-
-  const updates = [];
-
-  for (const [uid, scores] of userScores.entries()) {
-    const overall = clamp(scores.buyer * 0.6 + scores.vendor * 0.4);
-
-    updates.push(
-      User.findByIdAndUpdate(uid, {
-        buyerTrustScore: scores.buyer,
-        vendorTrustScore: scores.vendor,
-        overallTrustScore: overall,
-      })
-    );
-  }
-
-  await Promise.all(updates);
-
-  return {
-    recomputedUsers: updates.length,
-    target: userId ? "single user" : "all users",
-  };
-}
-
-
 export const DEFAULT_RULES = {
   onTimeDelivery: 2,
   lateDelivery: -4,
   onTimePayment: 2,
   latePayment: -3,
   disputeOpened: -10,
-  disputeResolved: 3,
   cancelByVendor: -7,
   cancelByBuyer: -4,
 };
@@ -81,21 +35,14 @@ async function recordHistory({ userId, role, oldScore, newScore, reason, txId })
 }
 
 export function computeDeltaFromTransaction(tx, rules = DEFAULT_RULES) {
-  let buyerDelta = 0;
-  let vendorDelta = 0;
+  // TrustChain v1 logic — deterministic & schema-safe
+  let buyerDelta = rules.onTimePayment;
+  let vendorDelta = rules.onTimeDelivery;
 
-  const meta = tx.meta || {};
-
-  vendorDelta += meta.deliveryOnTime ? rules.onTimeDelivery : rules.lateDelivery;
-  buyerDelta += meta.paymentOnTime ? rules.onTimePayment : rules.latePayment;
-
-  if (meta.dispute) {
+  if (tx.status === "disputed") {
     buyerDelta += rules.disputeOpened;
     vendorDelta += rules.disputeOpened;
   }
-
-  if (meta.cancelledByVendor) vendorDelta += rules.cancelByVendor;
-  if (meta.cancelledByBuyer) buyerDelta += rules.cancelByBuyer;
 
   return { buyerDelta, vendorDelta };
 }
@@ -146,34 +93,92 @@ export async function applyTrustScoreDeltas({
       txId,
     }),
   ]);
+
+  return {
+    buyerDelta,
+    vendorDelta,
+  };
 }
 
 export async function updateTrustScoreForTransaction(tx) {
-  const { buyerDelta, vendorDelta } = computeDeltaFromTransaction(tx);
+  try {
+    const { buyerDelta, vendorDelta } = computeDeltaFromTransaction(tx);
 
-  let multiplier = 1;
+    let multiplier = 1;
 
-  if (process.env.ML_ENABLED === "true" && process.env.ML_SERVICE_URL) {
-    try {
-      const res = await axios.post(
-        `${process.env.ML_SERVICE_URL}/predict`,
-        {
-          totalAmount: tx.totalAmount,
-          dispute: tx.meta?.dispute || false,
-        },
-        { timeout: 3000 }
-      );
-      multiplier = res.data?.multiplier || 1;
-    } catch {
-      multiplier = 1;
+    if (process.env.ML_ENABLED === "true" && process.env.ML_SERVICE_URL) {
+      try {
+        const res = await axios.post(
+          `${process.env.ML_SERVICE_URL}/predict`,
+          {
+            totalAmount: tx.totalAmount,
+            disputed: tx.status === "disputed",
+          },
+          { timeout: 3000 }
+        );
+        multiplier = res.data?.multiplier || 1;
+      } catch {
+        multiplier = 1;
+      }
     }
-  }
 
-  await applyTrustScoreDeltas({
-    buyerId: tx.buyerId,
-    vendorId: tx.vendorId,
-    buyerDelta: Math.round(buyerDelta * multiplier),
-    vendorDelta: Math.round(vendorDelta * multiplier),
-    txId: tx._id,
-  });
+    return await applyTrustScoreDeltas({
+      buyerId: tx.buyerId,
+      vendorId: tx.vendorId,
+      buyerDelta: Math.round(buyerDelta * multiplier),
+      vendorDelta: Math.round(vendorDelta * multiplier),
+      txId: tx._id,
+    });
+  } catch (err) {
+    console.error("TrustScore update failed:", err);
+    throw new Error("TrustScore update failed");
+  }
+}
+
+export async function recomputeTrustScores({ userId = null }) {
+  try {
+    const query = userId ? { userId } : {};
+
+    const histories = await TrustScoreHistory.find(query)
+      .sort({ timestamp: 1 })
+      .lean();
+
+    const userScores = new Map();
+
+    for (const h of histories) {
+      if (!userScores.has(h.userId.toString())) {
+        userScores.set(h.userId.toString(), {
+          buyer: 100,
+          vendor: 100,
+        });
+      }
+
+      const scores = userScores.get(h.userId.toString());
+      if (h.role === "buyer") scores.buyer = h.newScore;
+      if (h.role === "vendor") scores.vendor = h.newScore;
+    }
+
+    const updates = [];
+
+    for (const [uid, scores] of userScores.entries()) {
+      const overall = clamp(scores.buyer * 0.6 + scores.vendor * 0.4);
+
+      updates.push(
+        User.findByIdAndUpdate(uid, {
+          buyerTrustScore: scores.buyer,
+          vendorTrustScore: scores.vendor,
+          overallTrustScore: overall,
+        })
+      );
+    }
+
+    await Promise.all(updates);
+
+    return {
+      recomputedUsers: updates.length,
+      target: userId ? "single user" : "all users",
+    };
+  } catch (err) {
+    throw new Error("TrustScore recomputation failed");
+  }
 }

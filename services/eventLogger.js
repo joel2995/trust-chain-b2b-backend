@@ -1,4 +1,3 @@
-// services/eventLogger.js
 import Event from "../models/Event.js";
 
 export const logEvent = async ({

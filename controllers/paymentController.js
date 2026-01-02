@@ -6,10 +6,6 @@ import {
 import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
 
-/**
- * @route POST /api/payments/create-order
- * @access Buyer
- */
 export const createPaymentOrder = async (req, res) => {
   try {
     const { transactionId } = req.body;
@@ -21,8 +17,8 @@ export const createPaymentOrder = async (req, res) => {
       return res.status(403).json({ msg: "Unauthorized" });
     }
 
-    if (tx.payment?.status === "paid") {
-      return res.status(400).json({ msg: "Transaction already paid" });
+    if (tx.payment?.status === "authorized") {
+      return res.status(400).json({ msg: "Payment already authorized" });
     }
 
     const order = await createRazorpayOrder({
@@ -33,7 +29,7 @@ export const createPaymentOrder = async (req, res) => {
     tx.payment = {
       provider: "razorpay",
       orderId: order.id,
-      status: "pending",
+      status: "created",
     };
 
     await tx.save();
@@ -45,15 +41,10 @@ export const createPaymentOrder = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
-    console.error("Create payment error:", err);
     res.status(500).json({ error: "Payment order failed" });
   }
 };
 
-/**
- * @route POST /api/payments/verify
- * @access Buyer
- */
 export const verifyPayment = async (req, res) => {
   try {
     const {
@@ -78,12 +69,12 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({ msg: "Invalid payment signature" });
     }
 
-    // ✅ MARK PAYMENT SUCCESS
-    tx.payment.status = "paid";
+    // 🔒 PAYMENT AUTHORIZED (NOT RELEASED)
+    tx.payment.status = "authorized";
     tx.payment.paymentId = razorpay_payment_id;
-    tx.payment.paidAt = new Date();
+    tx.payment.authorizedAt = new Date();
 
-    // 🔒 AUTO CREATE ESCROW (ONCE)
+    // Audit escrow record
     if (!tx.escrow?.holdId) {
       const hold = await createHold({
         transactionId: tx._id,
@@ -103,20 +94,11 @@ export const verifyPayment = async (req, res) => {
     await logEvent({
       transactionId: tx._id,
       userId: req.user._id,
-      type: "PAYMENT_SUCCESS",
-      payload: {
-        orderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
-      },
+      type: "PAYMENT_AUTHORIZED",
     });
 
-    res.json({ msg: "Payment verified successfully" });
+    res.json({ msg: "Payment authorized, escrow locked" });
   } catch (err) {
-  console.error("❌ Razorpay create order error:");
-  console.error(err?.error || err);
-
-  return res.status(500).json({
-    error: err?.error?.description || err.message || "Razorpay error",
-  });
-}
+    res.status(500).json({ error: "Payment verification failed" });
+  }
 };

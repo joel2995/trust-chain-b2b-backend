@@ -26,11 +26,17 @@ const userSchema = new mongoose.Schema(
     },
 
     phone: String,
-    passwordHash: { type: String, required: true },
+
+    passwordHash: {
+      type: String,
+      required: true,
+      select: false,
+    },
 
     profile: profileSchema,
 
-    roleMode: {
+    // 🔧 FIXED: roleMode → role
+    role: {
       type: String,
       enum: ["buyer", "vendor"],
       default: "buyer",

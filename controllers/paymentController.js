@@ -112,7 +112,11 @@ export const verifyPayment = async (req, res) => {
 
     res.json({ msg: "Payment verified successfully" });
   } catch (err) {
-    console.error("Verify payment error:", err);
-    res.status(500).json({ error: "Payment verification failed" });
-  }
+  console.error("❌ Razorpay create order error:");
+  console.error(err?.error || err);
+
+  return res.status(500).json({
+    error: err?.error?.description || err.message || "Razorpay error",
+  });
+}
 };

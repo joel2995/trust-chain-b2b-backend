@@ -4,12 +4,14 @@ import { protect } from "../middleware/authMiddleware.js";
 import { idempotency } from "../middleware/idempotency.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { writeProofSchema } from "../validators/blockchain.validator.js";
+import { blockchainLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 router.post(
   "/write",
   protect,
+  blockchainLimiter,
   idempotency,
   validateRequest(writeProofSchema),
   writeProof

@@ -27,8 +27,6 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { globalErrorHandler } from "./middleware/errorHandler.js";
 import AppError from "./utils/AppError.js";
 
-connectDB();
-
 const app = express();
 app.use(cors({
   origin: ["http://localhost:3000"],

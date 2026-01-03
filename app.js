@@ -23,6 +23,7 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
+import { requestLogger } from "./middleware/requestLogger.js";
 
 connectDB();
 

@@ -1,12 +1,8 @@
 // app.js
 import express from "express";
 import cors from "cors";
-import connectDB from "./config/db.js";
-
 import helmet from "helmet";
-import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-
 
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";

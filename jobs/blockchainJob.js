@@ -1,18 +1,16 @@
+import { logger } from "../utils/logger.js";
 import { storeProofOnChain } from "../services/blockchainService.js";
 
 export const processBlockchainJob = async (jobData) => {
   try {
-    const { cid, fileHash, userId } = jobData;
+    logger.info({ jobData }, "Blockchain job started");
 
-    console.log("⛓️ Processing blockchain job for user:", userId);
+    const result = await storeProofOnChain(jobData);
 
-    const result = await storeProofOnChain({ cid, fileHash });
-
-    console.log("✅ Blockchain job completed:", result);
-
+    logger.info({ result }, "Blockchain job completed");
     return result;
   } catch (err) {
-    console.error("❌ Blockchain job failed:", err.message);
+    logger.error(err, "Blockchain job failed");
     throw err;
   }
 };

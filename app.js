@@ -24,6 +24,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import { globalErrorHandler } from "./middleware/errorHandler.js";
 
 connectDB();
 
@@ -71,5 +72,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
+app.use(globalErrorHandler);
 
 export default app;

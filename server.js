@@ -1,5 +1,6 @@
-// 🚨 MUST BE FIRST
+// 🚨 env first
 import "./config/env.js";
+
 
 // then everything else
 import app from "./app.js";

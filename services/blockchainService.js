@@ -1,4 +1,3 @@
-// services/blockchainService.js
 import { getProviderAndWallet, getProofContract } from "../config/blockchain.js";
 
 export const storeProofOnChain = async ({ cid, fileHash }) => {
@@ -12,11 +11,12 @@ export const storeProofOnChain = async ({ cid, fileHash }) => {
     return {
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
-      chain: process.env.BLOCKCHAIN_NETWORK || "ethereum",
+      contract: process.env.PROOF_CONTRACT_ADDRESS,
+      network: process.env.BLOCKCHAIN_NETWORK || "sepolia",
       writtenAt: new Date(),
     };
   } catch (err) {
-    console.warn("⚠ Blockchain write failed:", err.message);
+    console.error("⚠ Blockchain write failed:", err.message);
     throw err;
   }
 };

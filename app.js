@@ -22,6 +22,7 @@ import productRoutes from "./routes/productRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import healthRoutes from "./routes/healthRoutes.js";
 
 connectDB();
 
@@ -60,6 +61,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/health", healthRoutes);
 // generic error handler
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);

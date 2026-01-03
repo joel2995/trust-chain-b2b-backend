@@ -68,7 +68,5 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", service: "TrustChain Backend" });
-});
+
 export default app;

@@ -4,21 +4,16 @@ import { getQueueStatus } from "../utils/jobQueue.js";
 
 const router = express.Router();
 
-router.get("/health", async (req, res) => {
+router.get("/", (req, res) => {
   const dbState = mongoose.connection.readyState;
-
-  const dbStatus =
-    dbState === 1 ? "UP" :
-    dbState === 2 ? "CONNECTING" :
-    "DOWN";
 
   res.status(200).json({
     status: "OK",
     service: "TrustChain Backend",
     uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    database: dbStatus,
+    database: dbState === 1 ? "UP" : "DOWN",
     queue: getQueueStatus(),
+    timestamp: new Date().toISOString(),
   });
 });
 

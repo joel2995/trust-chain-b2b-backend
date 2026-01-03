@@ -1,6 +1,7 @@
 import IdempotencyKey from "../models/IdempotencyKey.js";
 import { addJob } from "../utils/jobQueue.js";
 import { processBlockchainJob } from "../jobs/blockchainJob.js";
+import { logger } from "../utils/logger.js";
 
 export const writeProof = async (req, res) => {
   try {
@@ -42,7 +43,7 @@ export const writeProof = async (req, res) => {
 
     return res.status(202).json(response);
   } catch (err) {
-    console.error("Queue error:", err);
-    return res.status(500).json({ error: err.message });
-  }
+  logger.error(err, "Blockchain controller error");
+  res.status(500).json({ error: err.message });
+}
 };

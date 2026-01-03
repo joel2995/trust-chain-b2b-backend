@@ -25,6 +25,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { globalErrorHandler } from "./middleware/errorHandler.js";
+import AppError from "./utils/AppError.js";
 
 connectDB();
 
@@ -66,10 +67,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/health", healthRoutes);
 
-// generic error handler
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
+app.all("*", (req, res, next) => {
+  next(new AppError(`Route ${req.originalUrl} not found`, 404));
 });
 
 app.use(globalErrorHandler);

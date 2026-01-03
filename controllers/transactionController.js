@@ -1,5 +1,6 @@
 import { updateTransactionStatus } from "../services/transactionService.js";
 
+import { logger } from "../utils/logger.js";
 /**
  * Buyer confirms delivery
  */
@@ -14,8 +15,9 @@ export const confirmDelivery = async (req, res) => {
       transaction: tx,
     });
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  logger.error(err, "Transaction state update failed");
+  res.status(400).json({ error: err.message });
+}
 };
 
 /**
@@ -32,8 +34,9 @@ export const releaseEscrow = async (req, res) => {
       transaction: tx,
     });
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  logger.error(err, "Transaction state update failed");
+  res.status(400).json({ error: err.message });
+}
 };
 
 /**

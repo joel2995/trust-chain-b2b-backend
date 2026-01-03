@@ -6,6 +6,7 @@ import {
 import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
 import { logger } from "../utils/logger.js";
+import AppError from "../utils/AppError.js";
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -42,8 +43,8 @@ export const createPaymentOrder = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
-    res.status(500).json({ error: "Payment order failed" });
-  }
+  throw new AppError(err.message, 500);
+}
 };
 
 export const verifyPayment = async (req, res) => {
@@ -100,7 +101,6 @@ export const verifyPayment = async (req, res) => {
 
     res.json({ msg: "Payment authorized, escrow locked" });
   } catch (err) {
-    logger.error(err, "Payment verification failed");
-    res.status(500).json({ error: err.message });
-  }
+  throw new AppError(err.message, 500);
+}
 };

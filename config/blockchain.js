@@ -20,8 +20,9 @@ export const getProofContract = (wallet) => {
   }
 
   const abi = [
-    "function storeProof(string cid, string fileHash) external",
-  ];
+  "function storeProof(bytes32 proofHash) external",
+];
+
 
   return new ethers.Contract(
     process.env.PROOF_CONTRACT_ADDRESS,

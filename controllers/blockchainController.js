@@ -1,51 +1,48 @@
-import { storeProofOnChain } from "../services/blockchainService.js";
 import IdempotencyKey from "../models/IdempotencyKey.js";
+import { addJob } from "../utils/jobQueue.js";
+import { processBlockchainJob } from "../jobs/blockchainJob.js";
 
 export const writeProof = async (req, res) => {
   try {
     const { cid, fileHash } = req.body;
-    const idempotencyKey = req.idempotencyKey; // set by middleware
+    const idempotencyKey = req.idempotencyKey;
 
     if (!cid || !fileHash) {
       return res.status(400).json({ msg: "Missing cid or fileHash" });
     }
 
-    // 🔁 STEP 1: Check idempotency key (if provided)
+    // 🔁 Idempotency check
     if (idempotencyKey) {
       const existing = await IdempotencyKey.findOne({ key: idempotencyKey });
-
       if (existing) {
-        // ✅ Return stored response (no blockchain call)
         return res.status(200).json(existing.response);
       }
     }
 
-    // 🔗 STEP 2: Perform blockchain write
-    const result = await storeProofOnChain({ cid, fileHash });
+    // 🧵 Add blockchain job to queue
+    await addJob(processBlockchainJob, {
+      cid,
+      fileHash,
+      userId: req.user.id,
+    });
 
-    const responsePayload = result.alreadyExists
-      ? {
-          msg: "Proof already exists on blockchain",
-          proofHash: result.proofHash,
-        }
-      : {
-          msg: "Proof stored on blockchain",
-          proof: result,
-        };
+    const response = {
+      msg: "Blockchain proof queued",
+      status: "PENDING",
+    };
 
-    // 💾 STEP 3: Store idempotency result (if key provided)
+    // 💾 Store idempotent response
     if (idempotencyKey) {
       await IdempotencyKey.create({
         key: idempotencyKey,
         endpoint: "POST /api/chain/write",
-        response: responsePayload,
+        response,
       });
     }
 
-    return res.status(result.alreadyExists ? 200 : 201).json(responsePayload);
-
+    return res.status(202).json(response);
   } catch (err) {
-    console.error("Blockchain write error:", err);
+    console.error("Queue error:", err);
     return res.status(500).json({ error: err.message });
   }
 };

@@ -45,6 +45,7 @@ app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100
 }));
+app.use(requestLogger);
 
 
 // API routes
@@ -63,6 +64,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/health", healthRoutes);
+
 // generic error handler
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);

@@ -21,7 +21,9 @@ export const getProofContract = (wallet) => {
 
   const abi = [
   "function storeProof(bytes32 proofHash) external",
+  "function proofs(bytes32 proofHash) view returns (bool)"
 ];
+
 
 
   return new ethers.Contract(

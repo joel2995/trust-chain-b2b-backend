@@ -5,6 +5,7 @@ import {
 } from "../services/razorpayService.js";
 import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
+import { logger } from "../utils/logger.js";
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -99,6 +100,7 @@ export const verifyPayment = async (req, res) => {
 
     res.json({ msg: "Payment authorized, escrow locked" });
   } catch (err) {
-    res.status(500).json({ error: "Payment verification failed" });
+    logger.error(err, "Payment verification failed");
+    res.status(500).json({ error: err.message });
   }
 };

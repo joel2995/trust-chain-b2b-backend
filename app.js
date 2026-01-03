@@ -39,7 +39,6 @@ app.use(express.json());
 app.get("/", (req, res) => res.json({ status: "TrustChain API up" }));
 
 app.use(helmet());
-app.use(morgan("dev"));
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,

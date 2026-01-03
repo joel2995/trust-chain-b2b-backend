@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import { getQueueStatus } from "../utils/jobQueue.js";
 
 const router = express.Router();
 
@@ -17,6 +18,7 @@ router.get("/health", async (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     database: dbStatus,
+    queue: getQueueStatus(),
   });
 });
 

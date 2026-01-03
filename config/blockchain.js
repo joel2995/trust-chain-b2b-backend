@@ -1,12 +1,15 @@
 import { ethers } from "ethers";
 
 export const getProviderAndWallet = () => {
-  if (!process.env.RPC_URL || !process.env.PRIVATE_KEY) {
-    throw new Error("Blockchain env vars missing");
+  const rpcUrl = process.env.SEPOLIA_RPC_URL;
+  const privateKey = process.env.BLOCKCHAIN_PRIVATE_KEY;
+
+  if (!rpcUrl || !privateKey) {
+    throw new Error("Blockchain env vars missing (RPC / PRIVATE KEY)");
   }
 
-  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-  const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
 
   return { provider, wallet };
 };

@@ -3,6 +3,7 @@ import { adminProtect } from "../middleware/adminAuthMiddleware.js";
 import {
   getAllUsers,
   getPendingKyc,
+  getUsersWithPendingKyc,
   approveKyc,
   rejectKyc,
   getAllTransactions,
@@ -13,15 +14,19 @@ import {
 
 const router = express.Router();
 
-// Admin protected routes
 router.use(adminProtect);
 
+// USERS
 router.get("/users", getAllUsers);
+router.get("/users/kyc-pending", getUsersWithPendingKyc);
+
+// KYC
 router.get("/kyc/pending", getPendingKyc);
 router.put("/kyc/approve/:userId", approveKyc);
 router.put("/kyc/reject/:userId", rejectKyc);
-router.put("/users/:userId/role", setUserRole);
 
+// OTHER
+router.put("/users/:userId/role", setUserRole);
 router.get("/transactions", getAllTransactions);
 router.get("/stats", getAdminStats);
 router.get("/events", getEvents);

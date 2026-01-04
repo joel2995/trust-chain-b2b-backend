@@ -37,10 +37,16 @@ export const getAllUsers = async (req, res) => {
 // KYC
 // --------------------------------------------------
 // adminController.js
+// --------------------------------------------------
+// KYC REVIEW QUEUE (ADMIN)
+// --------------------------------------------------
 export const getPendingKyc = async (req, res) => {
   try {
-    const list = await User.find({ kycStatus: "pending" })
-      //.populate("userId", "name email phone role kycStatus profile");
+    const list = await KYC.find({
+      status: "pending",
+      "docs.0": { $exists: true } // ensures at least 1 document uploaded
+    })
+    .populate("userId", "name email phone role kycStatus profile");
 
     res.json(list);
   } catch (err) {
@@ -48,24 +54,33 @@ export const getPendingKyc = async (req, res) => {
   }
 };
 
+// --------------------------------------------------
+// USERS WHO HAVE NOT COMPLETED KYC
+// --------------------------------------------------
+export const getUsersWithPendingKyc = async (req, res) => {
+  try {
+    const users = await User.find({ kycStatus: "pending" })
+      .select("name email phone role kycStatus createdAt");
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 export const approveKyc = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Find KYC by USER ID (not KYC _id)
     const kyc = await KYC.findOne({ userId });
+    if (!kyc) return res.status(404).json({ msg: "KYC not found" });
 
-    if (!kyc) {
-      return res.status(404).json({ msg: "KYC not found" });
-    }
-
-    // Update KYC status
     kyc.status = "verified";
     kyc.reviewedAt = new Date();
     await kyc.save();
 
-    // Update User KYC status
     const user = await User.findByIdAndUpdate(
       userId,
       { kycStatus: "verified" },
@@ -91,22 +106,24 @@ export const approveKyc = async (req, res) => {
 
 export const rejectKyc = async (req, res) => {
   try {
-    const kyc = await KYC.findByIdAndUpdate(
-      req.params.kycId,
+    const { userId } = req.params;
+
+    const kyc = await KYC.findOneAndUpdate(
+      { userId },
       { status: "rejected", reviewedAt: new Date() },
       { new: true }
     );
 
     if (!kyc) return res.status(404).json({ msg: "KYC not found" });
 
-    await User.findByIdAndUpdate(kyc.userId, {
+    await User.findByIdAndUpdate(userId, {
       kycStatus: "rejected",
     });
 
     await Event.create({
       userId: req.admin._id,
       type: "KYC_REJECTED",
-      payload: { kycId: kyc._id },
+      payload: { userId },
     });
 
     res.json({ msg: "KYC rejected" });
@@ -114,6 +131,7 @@ export const rejectKyc = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // --------------------------------------------------

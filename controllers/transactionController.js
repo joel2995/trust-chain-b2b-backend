@@ -15,12 +15,8 @@ export const createTransaction = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
-    if (req.user.role !== "buyer") {
-      throw new AppError("Only buyers can create transactions", 403);
-    }
-
     if (!productId || !quantity || quantity <= 0) {
-      throw new AppError("Invalid product or quantity", 400);
+      throw new AppError("productId and valid quantity required", 400);
     }
 
     const product = await Product.findById(productId);
@@ -32,25 +28,27 @@ export const createTransaction = async (req, res) => {
       throw new AppError("Insufficient stock", 400);
     }
 
-    // 🔒 RESERVE STOCK
+    // 🔒 LOCK STOCK
     product.stock -= quantity;
     await product.save();
+
+    const amount = product.price * quantity;
 
     const tx = await Transaction.create({
       buyerId: req.user._id,
       vendorId: product.vendorId,
       productId,
       quantity,
-      totalAmount: product.price * quantity,
+      amount,
       status: "CREATED",
     });
 
     res.status(201).json({
-      msg: "Transaction created, stock reserved",
+      msg: "Transaction created",
       transaction: tx,
     });
   } catch (err) {
-    throw new AppError(err.message, 500);
+    throw err;
   }
 };
 

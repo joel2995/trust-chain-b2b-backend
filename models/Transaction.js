@@ -11,10 +11,14 @@ const transactionSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  amount: {
-    type: Number,
-    required: true,
-  },
+  amount: { type: Number, required: true },
+productId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Product",
+  required: true,
+},
+quantity: { type: Number, required: true },
+
   razorpayOrderId: String,
   razorpayPaymentId: String,
 

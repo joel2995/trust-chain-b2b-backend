@@ -9,9 +9,7 @@ import {
 
 const router = express.Router();
 
-// 🔹 BUYER creates transaction
-router.post("/", protect, createTransaction);
-
+router.post("/", protect, createTransaction); // ✅ THIS WAS MISSING
 router.post("/:transactionId/deliver", protect, confirmDelivery);
 router.post("/:transactionId/release", protect, releaseEscrow);
 router.post("/:transactionId/dispute", protect, raiseDispute);

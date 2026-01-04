@@ -36,17 +36,18 @@ export const getAllUsers = async (req, res) => {
 // --------------------------------------------------
 // KYC
 // --------------------------------------------------
-export const getPendingKyc = async (_, res) => {
+// adminController.js
+export const getPendingKyc = async (req, res) => {
   try {
-    const list = await KYC.find({ status: "pending" }).populate(
-      "userId",
-      "name email profile"
-    );
+    const list = await KYC.find({ status: "pending" })
+      .populate("userId", "name email phone role kycStatus profile");
+
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const approveKyc = async (req, res) => {
   try {

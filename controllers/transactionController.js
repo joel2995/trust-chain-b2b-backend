@@ -32,23 +32,20 @@ export const createTransaction = async (req, res) => {
     product.stock -= quantity;
     await product.save();
 
-    const amount = product.price * quantity;
+    const totalAmount = product.price * quantity;
 
     const tx = await Transaction.create({
+      productId,
       buyerId: req.user._id,
       vendorId: product.vendorId,
-      productId,
       quantity,
-      amount,
+      amount: totalAmount,
       status: "CREATED",
     });
 
-    res.status(201).json({
-      msg: "Transaction created",
-      transaction: tx,
-    });
+    res.status(201).json(tx);
   } catch (err) {
-    throw err;
+    throw new AppError(err.message, 500);
   }
 };
 

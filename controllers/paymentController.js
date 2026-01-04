@@ -27,9 +27,9 @@ export const createPaymentOrder = async (req, res) => {
     }
 
     const order = await createRazorpayOrder({
-      amount: tx.totalAmount,
-      receipt: tx.orderId,
-    });
+  amount: tx.amount,
+  receipt: tx._id.toString(),
+});
 
     tx.payment = {
       provider: "razorpay",

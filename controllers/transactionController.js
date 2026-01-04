@@ -8,6 +8,53 @@ import Transaction from "../models/Transaction.js";
 /**
  * Buyer confirms delivery
  */
+/**
+ * Buyer creates transaction (RESERVES STOCK)
+ */
+export const createTransaction = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+
+    if (req.user.role !== "buyer") {
+      throw new AppError("Only buyers can create transactions", 403);
+    }
+
+    if (!productId || !quantity || quantity <= 0) {
+      throw new AppError("Invalid product or quantity", 400);
+    }
+
+    const product = await Product.findById(productId);
+    if (!product || !product.active) {
+      throw new AppError("Product not available", 404);
+    }
+
+    if (product.stock < quantity) {
+      throw new AppError("Insufficient stock", 400);
+    }
+
+    // 🔒 RESERVE STOCK
+    product.stock -= quantity;
+    await product.save();
+
+    const tx = await Transaction.create({
+      buyerId: req.user._id,
+      vendorId: product.vendorId,
+      productId,
+      quantity,
+      totalAmount: product.price * quantity,
+      status: "CREATED",
+    });
+
+    res.status(201).json({
+      msg: "Transaction created, stock reserved",
+      transaction: tx,
+    });
+  } catch (err) {
+    throw new AppError(err.message, 500);
+  }
+};
+
+
 export const confirmDelivery = async (req, res) => {
   try {
     const { transactionId } = req.params;

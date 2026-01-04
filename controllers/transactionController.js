@@ -61,12 +61,18 @@ export const raiseDispute = async (req, res) => {
       disputeReason: reason,
     });
 
+    // ✅ TRUSTSCORE UPDATE (STEP 4)
+    await applyTrustEvent({
+      userId: tx.vendorId,
+      eventKey: "VENDOR_DISPUTE_LOST",
+      referenceId: tx._id.toString(),
+    });
+
     res.json({
       msg: "Dispute raised",
       transaction: tx,
     });
-  } 
-catch (err) {
-  throw new AppError(err.message, 500);
-}
+  } catch (err) {
+    throw new AppError(err.message, 500);
+  }
 };

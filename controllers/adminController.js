@@ -39,8 +39,8 @@ export const getAllUsers = async (req, res) => {
 // adminController.js
 export const getPendingKyc = async (req, res) => {
   try {
-    const list = await KYC.find({ status: "pending" })
-      .populate("userId", "name email phone role kycStatus profile");
+    const list = await User.find({ kycStatus: "pending" })
+      //.populate("userId", "name email phone role kycStatus profile");
 
     res.json(list);
   } catch (err) {

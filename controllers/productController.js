@@ -53,6 +53,8 @@ export const updateProduct = async (req, res) => {
       return res.status(403).json({ msg: "Only vendors can update products" });
     }
 
+    delete req.body.stock; // 🔒 optional safety
+
     const product = await Product.findOneAndUpdate(
       { _id: req.params.id, vendorId: req.user._id },
       req.body,
@@ -68,6 +70,7 @@ export const updateProduct = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Vendor delete
 export const deleteProduct = async (req, res) => {

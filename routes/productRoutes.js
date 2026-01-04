@@ -11,9 +11,16 @@ import {
 
 const router = express.Router();
 
+// Marketplace (buyer + vendor browse)
 router.get("/", getProducts);
-router.get("/:id", getProductById);
+
+// Vendor dashboard (OWN products)
 router.get("/my", protect, getMyProducts);
+
+// Single product
+router.get("/:id", getProductById);
+
+// Vendor CRUD (OWN products only)
 router.post("/", protect, createProduct);
 router.put("/:id", protect, updateProduct);
 router.delete("/:id", protect, deleteProduct);

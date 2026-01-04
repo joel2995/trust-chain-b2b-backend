@@ -7,6 +7,8 @@ import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
 import { logger } from "../utils/logger.js";
 import AppError from "../utils/AppError.js";
+import { applyTrustEvent } from "../services/trustScoreService.js";
+
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -66,10 +68,19 @@ export const verifyPayment = async (req, res) => {
     });
 
     if (!isValid) {
-      tx.payment.status = "failed";
-      await tx.save();
-      return res.status(400).json({ msg: "Invalid payment signature" });
-    }
+  tx.payment.status = "failed";
+  await tx.save();
+
+  // ✅ TRUSTSCORE UPDATE (STEP 4)
+  await applyTrustEvent({
+    userId: tx.buyerId,
+    eventKey: "BUYER_PAYMENT_FAILURE",
+    referenceId: tx._id.toString(),
+  });
+
+  return res.status(400).json({ msg: "Invalid payment signature" });
+}
+
 
     // 🔒 PAYMENT AUTHORIZED (NOT RELEASED)
     tx.payment.status = "authorized";

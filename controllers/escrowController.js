@@ -1,6 +1,7 @@
 import Transaction from "../models/Transaction.js";
 import { createHold } from "../services/escrowService.js";
 import { logEvent } from "../services/eventLogger.js";
+import { applyTrustEvent } from "../services/trustScoreService.js";
 
 /**
  * @desc    Create escrow hold (after payment)

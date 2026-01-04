@@ -3,7 +3,8 @@ import { updateTransactionStatus } from "../services/transactionService.js";
 import { logger } from "../utils/logger.js";
 import AppError from "../utils/AppError.js";
 import { applyTrustEvent } from "../services/trustScoreService.js";
-
+import Product from "../models/Product.js";
+import Transaction from "../models/Transaction.js";
 /**
  * Buyer confirms delivery
  */

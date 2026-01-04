@@ -1,13 +1,25 @@
 import TrustScore from "../models/TrustScore.js";
 import { TRUST_EVENTS } from "../constants/trustEvents.js";
 
+/**
+ * Clamp value between min and max
+ */
+const clamp = (value, min = 0, max = 100) => {
+  return Math.max(min, Math.min(max, value));
+};
+
+/**
+ * Apply trust event to buyer or vendor score
+ */
 export const applyTrustEvent = async ({
   userId,
   eventKey,
   referenceId,
 }) => {
   const event = TRUST_EVENTS[eventKey];
-  if (!event) throw new Error("Invalid trust event");
+  if (!event) {
+    throw new Error("Invalid trust event");
+  }
 
   let trust = await TrustScore.findOne({ userId });
 
@@ -15,20 +27,20 @@ export const applyTrustEvent = async ({
     trust = await TrustScore.create({ userId });
   }
 
+  // 🔒 CORE SCORING RULE (FINAL)
   if (event.role === "VENDOR") {
-    trust.vendorScore = Math.max(
-      0,
-      Math.min(100, trust.vendorScore + event.delta)
+    trust.vendorScore = clamp(
+      trust.vendorScore + event.delta
     );
   }
 
   if (event.role === "BUYER") {
-    trust.buyerScore = Math.max(
-      0,
-      Math.min(100, trust.buyerScore + event.delta)
+    trust.buyerScore = clamp(
+      trust.buyerScore + event.delta
     );
   }
 
+  // Audit trail (immutable history)
   trust.history.push({
     role: event.role,
     event: eventKey,

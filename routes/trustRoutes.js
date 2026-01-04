@@ -1,36 +1,19 @@
 import express from "express";
-import { adminProtect } from "../middleware/adminAuthMiddleware.js";
-import { recomputeTrustScores } from "../services/trustScoreService.js";
-import TrustScoreHistory from "../models/TrustScoreHistory.js";
+import TrustScore from "../models/TrustScore.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(adminProtect);
+router.get("/:userId", protect, async (req, res) => {
+  const trust = await TrustScore.findOne({ userId: req.params.userId });
 
-// Recompute trust scores
-router.post("/recompute", async (req, res) => {
-  try {
-    const userId = req.query.userId || null;
-    const result = await recomputeTrustScores({ userId });
-    res.json({ msg: "TrustScore recomputed", result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// View trust score history
-router.get("/history/:userId", async (req, res) => {
-  try {
-    const history = await TrustScoreHistory.find({
-      userId: req.params.userId,
-    })
-      .sort({ timestamp: -1 })
-      .lean();
-
-    res.json(history);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json(
+    trust || {
+      buyerScore: 100,
+      vendorScore: 100,
+      history: [],
+    }
+  );
 });
 
 export default router;

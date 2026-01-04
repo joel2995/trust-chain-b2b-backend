@@ -8,6 +8,7 @@ import { logEvent } from "../services/eventLogger.js";
 import { logger } from "../utils/logger.js";
 import AppError from "../utils/AppError.js";
 import { applyTrustEvent } from "../services/trustScoreService.js";
+import Product from "../models/Product.js";
 
 
 export const createPaymentOrder = async (req, res) => {
@@ -71,7 +72,14 @@ export const verifyPayment = async (req, res) => {
   tx.payment.status = "failed";
   await tx.save();
 
-  // ✅ TRUSTSCORE UPDATE (STEP 4)
+  // 🔄 RESTORE STOCK
+  const product = await Product.findById(tx.productId);
+  if (product) {
+    product.stock += tx.quantity;
+    await product.save();
+  }
+
+  // TrustScore update
   await applyTrustEvent({
     userId: tx.buyerId,
     eventKey: "BUYER_PAYMENT_FAILURE",
@@ -80,6 +88,7 @@ export const verifyPayment = async (req, res) => {
 
   return res.status(400).json({ msg: "Invalid payment signature" });
 }
+
 
 
     // 🔒 PAYMENT AUTHORIZED (NOT RELEASED)

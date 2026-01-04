@@ -90,3 +90,15 @@ export const deleteProduct = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getMyProducts = async (req, res) => {
+  if (req.user.role !== "vendor") {
+    return res.status(403).json({ msg: "Only vendors can access this" });
+  }
+
+  const products = await Product.find({
+    vendorId: req.user._id,
+  });
+
+  res.json(products);
+};

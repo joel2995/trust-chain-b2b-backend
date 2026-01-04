@@ -2,6 +2,8 @@ import { updateTransactionStatus } from "../services/transactionService.js";
 
 import { logger } from "../utils/logger.js";
 import AppError from "../utils/AppError.js";
+import { applyTrustEvent } from "../services/trustScoreService.js";
+
 /**
  * Buyer confirms delivery
  */
@@ -11,15 +13,22 @@ export const confirmDelivery = async (req, res) => {
 
     const tx = await updateTransactionStatus(transactionId, "DELIVERED");
 
+    // ✅ TRUSTSCORE UPDATE (STEP 4)
+    await applyTrustEvent({
+      userId: tx.vendorId,
+      eventKey: "VENDOR_SUCCESSFUL_DELIVERY",
+      referenceId: tx._id.toString(),
+    });
+
     res.json({
       msg: "Delivery confirmed",
       transaction: tx,
     });
-  } 
-catch (err) {
-  throw new AppError(err.message, 500);
-}
+  } catch (err) {
+    throw new AppError(err.message, 500);
+  }
 };
+
 
 /**
  * Admin releases escrow

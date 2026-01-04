@@ -99,9 +99,13 @@ export const rejectKyc = async (req, res) => {
 
     if (!kyc) return res.status(404).json({ msg: "KYC not found" });
 
+    await User.findByIdAndUpdate(kyc.userId, {
+      kycStatus: "rejected",
+    });
+
     await Event.create({
       userId: req.admin._id,
-      type: "kyc_rejected",
+      type: "KYC_REJECTED",
       payload: { kycId: kyc._id },
     });
 
@@ -110,6 +114,7 @@ export const rejectKyc = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // --------------------------------------------------
 // TRANSACTIONS

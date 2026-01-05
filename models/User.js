@@ -35,7 +35,6 @@ const userSchema = new mongoose.Schema(
 
     profile: profileSchema,
 
-    // 🔧 FIXED: roleMode → role
     role: {
       type: String,
       enum: ["buyer", "vendor"],
@@ -49,6 +48,10 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "verified", "rejected"],
       default: "pending",
     },
+
+    // 🔐 Blockchain proofs
+    kycProofHash: String,
+    kycProofTxHash: String,
 
     buyerTrustScore: { type: Number, default: 100 },
     vendorTrustScore: { type: Number, default: 100 },

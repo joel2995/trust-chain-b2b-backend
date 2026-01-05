@@ -57,14 +57,7 @@ export const switchUserRole = async (req, res) => {
       return res.status(400).json({ msg: "Invalid role mode" });
     }
 
-    // Optional restriction:
-    // If user is buyer-only, prevent vendor switch
-    if (role === "vendor" && req.user.role !== "vendor") {
-      return res.status(403).json({
-        msg: "Vendor access not allowed for this account",
-      });
-    }
-
+    // ✅ Free mode switching
     req.user.activeRole = role;
     await req.user.save();
 
@@ -76,3 +69,4 @@ export const switchUserRole = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+

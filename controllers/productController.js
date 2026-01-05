@@ -3,7 +3,7 @@ import Product from "../models/Product.js";
 // Vendor creates product
 export const createProduct = async (req, res) => {
   try {
-    if (req.user.role !== "vendor") {
+    if (req.user.activeRole !== "vendor") {
       return res.status(403).json({ msg: "Only vendors can create products" });
     }
 
@@ -49,7 +49,7 @@ export const getProductById = async (req, res) => {
 // Vendor update
 export const updateProduct = async (req, res) => {
   try {
-    if (req.user.role !== "vendor") {
+    if (req.user.activeRole !== "vendor") {
       return res.status(403).json({ msg: "Only vendors can update products" });
     }
 
@@ -75,7 +75,7 @@ export const updateProduct = async (req, res) => {
 // Vendor delete
 export const deleteProduct = async (req, res) => {
   try {
-    if (req.user.role !== "vendor") {
+    if (req.user.activeRole !== "vendor") {
       return res.status(403).json({ msg: "Only vendors can delete products" });
     }
 

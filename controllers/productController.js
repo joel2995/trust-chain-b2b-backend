@@ -177,3 +177,38 @@ export const deleteProductImage = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const addProductImage = async (req, res) => {
+  try {
+    if (req.user.activeRole !== "vendor") {
+      return res.status(403).json({ msg: "Vendor access only" });
+    }
+
+    const product = await Product.findOne({
+      _id: req.params.id,
+      vendorId: req.user._id,
+    });
+
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found or unauthorized" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ msg: "No image uploaded" });
+    }
+
+    const pin = await pinFileToPinata(req.file.path);
+    fs.unlinkSync(req.file.path);
+
+    product.images.push(pin.cid);
+    await product.save();
+
+    res.status(201).json({
+      msg: "Product image uploaded",
+      cid: pin.cid,
+      images: product.images,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

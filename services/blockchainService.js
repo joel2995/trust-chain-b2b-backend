@@ -9,7 +9,6 @@ export const storeProofOnChain = async ({ cid, fileHash }) => {
     ethers.toUtf8Bytes(`${cid}:${fileHash}`)
   );
 
-  // ✅ PRE-CHECK
   const exists = await contract.proofs(proofHash);
   if (exists) {
     return {
@@ -24,9 +23,9 @@ export const storeProofOnChain = async ({ cid, fileHash }) => {
 
   return {
     alreadyExists: false,
+    proofHash,
     txHash: receipt.hash,
     blockNumber: receipt.blockNumber,
-    proofHash,
     contract: process.env.PROOF_CONTRACT_ADDRESS,
   };
 };

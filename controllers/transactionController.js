@@ -1,15 +1,13 @@
-import { updateTransactionStatus } from "../services/transactionService.js";
-
-import { logger } from "../utils/logger.js";
+import crypto from "crypto";
 import AppError from "../utils/AppError.js";
-import { applyTrustEvent } from "../services/trustScoreService.js";
 import Product from "../models/Product.js";
 import Transaction from "../models/Transaction.js";
+import { updateTransactionStatus } from "../services/transactionService.js";
+import { applyTrustEvent } from "../services/trustScoreService.js";
+import { storeProofOnChain } from "../services/blockchainService.js";
+
 /**
- * Buyer confirms delivery
- */
-/**
- * Buyer creates transaction (RESERVES STOCK)
+ * Buyer creates transaction (LOCK STOCK)
  */
 export const createTransaction = async (req, res) => {
   try {
@@ -28,7 +26,7 @@ export const createTransaction = async (req, res) => {
       throw new AppError("Insufficient stock", 400);
     }
 
-    // 🔒 LOCK STOCK
+    // 🔒 Lock stock
     product.stock -= quantity;
     await product.save();
 
@@ -49,14 +47,38 @@ export const createTransaction = async (req, res) => {
   }
 };
 
-
+/**
+ * Buyer confirms delivery (BLOCKCHAIN PROOF)
+ */
 export const confirmDelivery = async (req, res) => {
   try {
     const { transactionId } = req.params;
+    const { deliveryCid } = req.body;
+
+    if (!deliveryCid) {
+      throw new AppError("Delivery image CID required", 400);
+    }
 
     const tx = await updateTransactionStatus(transactionId, "DELIVERED");
 
-    // ✅ TRUSTSCORE UPDATE (STEP 4)
+    // 🔐 Create proof hash
+    const deliveryHash = crypto
+      .createHash("sha256")
+      .update(`${deliveryCid}:${tx._id}`)
+      .digest("hex");
+
+    // ⛓️ Store proof on blockchain
+    const proof = await storeProofOnChain({
+      cid: deliveryCid,
+      fileHash: deliveryHash,
+    });
+
+    // Save proof in transaction
+    tx.deliveryProofHash = proof.proofHash;
+    tx.deliveryProofTxHash = proof.txHash;
+    await tx.save();
+
+    // TrustScore
     await applyTrustEvent({
       userId: tx.vendorId,
       eventKey: "VENDOR_SUCCESSFUL_DELIVERY",
@@ -64,7 +86,7 @@ export const confirmDelivery = async (req, res) => {
     });
 
     res.json({
-      msg: "Delivery confirmed",
+      msg: "Delivery confirmed with blockchain proof",
       transaction: tx,
     });
   } catch (err) {
@@ -72,24 +94,21 @@ export const confirmDelivery = async (req, res) => {
   }
 };
 
-
 /**
  * Admin releases escrow
  */
 export const releaseEscrow = async (req, res) => {
   try {
     const { transactionId } = req.params;
-
     const tx = await updateTransactionStatus(transactionId, "RELEASED");
 
     res.json({
-      msg: "Escrow released to vendor",
+      msg: "Escrow released",
       transaction: tx,
     });
-  } 
-catch (err) {
-  throw new AppError(err.message, 500);
-}
+  } catch (err) {
+    throw new AppError(err.message, 500);
+  }
 };
 
 /**
@@ -104,7 +123,6 @@ export const raiseDispute = async (req, res) => {
       disputeReason: reason,
     });
 
-    // ✅ TRUSTSCORE UPDATE (STEP 4)
     await applyTrustEvent({
       userId: tx.vendorId,
       eventKey: "VENDOR_DISPUTE_LOST",

@@ -147,3 +147,33 @@ export const replaceProductImage = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const deleteProductImage = async (req, res) => {
+  try {
+    if (req.user.activeRole !== "vendor") {
+      return res.status(403).json({ msg: "Vendor access only" });
+    }
+
+    const { id, cid } = req.params;
+
+    const product = await Product.findOne({
+      _id: id,
+      vendorId: req.user._id,
+    });
+
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found or unauthorized" });
+    }
+
+    product.images = product.images.filter((img) => img !== cid);
+    await product.save();
+
+    res.json({
+      msg: "Product image deleted",
+      images: product.images,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

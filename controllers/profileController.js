@@ -47,3 +47,32 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const switchUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    if (!["buyer", "vendor"].includes(role)) {
+      return res.status(400).json({ msg: "Invalid role mode" });
+    }
+
+    // Optional restriction:
+    // If user is buyer-only, prevent vendor switch
+    if (role === "vendor" && req.user.role !== "vendor") {
+      return res.status(403).json({
+        msg: "Vendor access not allowed for this account",
+      });
+    }
+
+    req.user.activeRole = role;
+    await req.user.save();
+
+    res.json({
+      msg: "Role switched successfully",
+      activeRole: role,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

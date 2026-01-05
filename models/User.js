@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema(
       enum: ["buyer", "vendor"],
       default: "vendor",
     },
+    activeRole: {
+  type: String,
+  enum: ["buyer", "vendor"],
+  default: "vendor",
+},
 
     walletAddress: String,
 

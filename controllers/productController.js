@@ -1,5 +1,6 @@
+import fs from "fs";
 import Product from "../models/Product.js";
-
+import { pinFileToPinata } from "../config/ipfs.js";
 // Vendor creates product
 export const createProduct = async (req, res) => {
   try {
@@ -105,3 +106,5 @@ export const getMyProducts = async (req, res) => {
 
   res.json(products);
 };
+
+

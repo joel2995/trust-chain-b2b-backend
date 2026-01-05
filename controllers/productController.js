@@ -108,3 +108,42 @@ export const getMyProducts = async (req, res) => {
 };
 
 
+export const replaceProductImage = async (req, res) => {
+  try {
+    if (req.user.activeRole !== "vendor") {
+      return res.status(403).json({ msg: "Vendor access only" });
+    }
+
+    const { id, oldCid } = req.params;
+
+    const product = await Product.findOne({
+      _id: id,
+      vendorId: req.user._id,
+    });
+
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found or unauthorized" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ msg: "No image uploaded" });
+    }
+
+    const pin = await pinFileToPinata(req.file.path);
+    fs.unlinkSync(req.file.path);
+
+    product.images = product.images.map((img) =>
+      img === oldCid ? pin.cid : img
+    );
+
+    await product.save();
+
+    res.json({
+      msg: "Product image replaced",
+      newCid: pin.cid,
+      images: product.images,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

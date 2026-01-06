@@ -39,10 +39,14 @@ app.get("/", (req, res) => res.json({ status: "TrustChain API up" }));
 
 app.use(helmet());
 
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-}));
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,                // ✅ increase
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
 
 app.use(requestLogger);
 
@@ -80,7 +84,7 @@ app.use("/api/admin", adminRoutes);
 
 // Health
 app.use("/health", healthRoutes);
-
+app.use("/api", limiter);
 // --------------------
 // 404 HANDLER
 // --------------------

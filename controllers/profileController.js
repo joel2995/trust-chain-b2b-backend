@@ -51,22 +51,24 @@ export const updateProfile = async (req, res) => {
 
 export const switchUserRole = async (req, res) => {
   try {
-    const { role } = req.body;
+    const user = req.user
 
-    if (!["buyer", "vendor"].includes(role)) {
-      return res.status(400).json({ msg: "Invalid role mode" });
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" })
     }
 
-    // ✅ Free mode switching
-    req.user.activeRole = role;
-    await req.user.save();
+    // 🔥 Toggle role automatically
+    user.activeRole = user.activeRole === "buyer" ? "vendor" : "buyer"
 
-    res.json({
-      msg: "Role switched successfully",
-      activeRole: role,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    await user.save()
+
+    res.status(200).json({
+      message: "Role switched successfully",
+      activeRole: user.activeRole,
+    })
+  } catch (error) {
+    console.error("Switch role error:", error)
+    res.status(500).json({ message: "Failed to switch role" })
   }
-};
+}
 

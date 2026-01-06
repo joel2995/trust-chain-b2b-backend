@@ -1,40 +1,48 @@
-import Transaction from "../models/Transaction.js";
+import Transaction from "../models/Transaction.js"
 
 export const getDashboardSummary = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user._id
+    const role = req.user.activeRole // buyer | vendor
 
-    const [txCount, completed, escrowAgg] = await Promise.all([
-      Transaction.countDocuments({
-        $or: [{ buyerId: userId }, { vendorId: userId }],
-      }),
-      Transaction.countDocuments({
-        status: "completed",
-        $or: [{ buyerId: userId }, { vendorId: userId }],
-      }),
-      Transaction.aggregate([
-        {
-          $match: {
-            "escrow.released": false,
-            $or: [{ buyerId: userId }, { vendorId: userId }],
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$totalAmount" },
-          },
-        },
-      ]),
-    ]);
+    // -----------------------------
+    // COMMON METRICS
+    // -----------------------------
+    const totalTransactions = await Transaction.countDocuments({
+      [role === "buyer" ? "buyer" : "vendor"]: userId,
+    })
 
-    res.json({
+    const completedTransactions = await Transaction.countDocuments({
+      [role === "buyer" ? "buyer" : "vendor"]: userId,
+      status: "completed",
+    })
+
+    const escrowAmountAgg = await Transaction.aggregate([
+      {
+        $match: {
+          [role === "buyer" ? "buyer" : "vendor"]: userId,
+          escrowStatus: "locked",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ])
+
+    const escrowAmount = escrowAmountAgg[0]?.total || 0
+
+    res.status(200).json({
+      role,
       trustScore: req.user.overallTrustScore,
-      totalTransactions: txCount,
-      completedTransactions: completed,
-      escrowAmount: escrowAgg[0]?.total || 0,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      totalTransactions,
+      completedTransactions,
+      escrowAmount,
+    })
+  } catch (error) {
+    console.error("Dashboard summary error:", error)
+    res.status(500).json({ message: "Failed to load dashboard summary" })
   }
-};
+}

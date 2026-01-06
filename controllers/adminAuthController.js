@@ -37,3 +37,25 @@ export const adminLogin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getCurrentAdmin = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.admin.id).select("-passwordHash")
+
+    if (!admin) {
+      return res.status(404).json({ msg: "Admin not found" })
+    }
+
+    res.json({
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: "admin",
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+

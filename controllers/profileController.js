@@ -30,49 +30,49 @@ export const getProfile = async (req, res) => {
 // -------------------------------------
 // UPDATE USER PROFILE
 // -------------------------------------
+// -------------------------------------
+// UPDATE USER PROFILE (ONLY NAME & PHONE)
+// -------------------------------------
 export const updateProfile = async (req, res) => {
   try {
-    const updates = req.body;
+    const { name, phone } = req.body;
 
     const user = await User.findById(req.user._id);
 
-    user.profile = { ...(user.profile || {}), ...updates };
+    // 🔒 Only allow these fields
+    if (typeof name === "string") {
+      user.name = name.trim();
+    }
+
+    if (typeof phone === "string") {
+      user.phone = phone.trim();
+    }
+
     await user.save();
 
-    // Log profile update
+    // 🔔 Log profile update
     await logUserEvent({
       userId: user._id,
       title: "Profile Updated",
-      description: "User updated profile information",
+      description: "User updated name or phone number",
       mode: user.activeRole,
       type: "profile",
     });
 
-    // If profile is complete → KYC pending
-    if (requireProfileComplete(user.profile)) {
-      await KYC.findOneAndUpdate(
-        { userId: user._id },
-        { status: "pending" },
-        { upsert: true }
-      );
-
-      await logUserEvent({
-        userId: user._id,
-        title: "KYC Pending",
-        description: "Profile completed, KYC verification pending",
-        mode: user.activeRole,
-        type: "kyc",
-      });
-    }
-
     res.json({
-      msg: "Profile updated",
-      profile: user.profile,
+      message: "Profile updated successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // -------------------------------------
 // SWITCH USER ROLE

@@ -151,23 +151,52 @@ export const getAllTransactions = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 // --------------------------------------------------
-// STATS
+// ADMIN STATS (KYC + USERS + TXS)
 // --------------------------------------------------
-export const getAdminStats = async (_, res) => {
+export const getAdminStats = async (req, res) => {
   try {
-    const [users, txs, pendingKyc] = await Promise.all([
-      User.countDocuments(),
-      Transaction.countDocuments(),
-      KYC.countDocuments({ status: "pending" }),
-    ]);
+    const [
+      totalUsers,
+      totalTransactions,
 
-    res.json({ users, txs, pendingKyc });
+      pendingKycUsers,
+      approvedKycUsers,
+      rejectedKycUsers,
+    ] = await Promise.all([
+      User.countDocuments(),
+
+      Transaction.countDocuments(),
+
+      // ✅ PENDING (same logic as /users/kyc-pending)
+      User.countDocuments({ kycStatus: "pending" }),
+
+      // ✅ APPROVED
+      User.countDocuments({ kycStatus: "verified" }),
+
+      // ✅ REJECTED / DISPUTED
+      User.countDocuments({ kycStatus: "rejected" }),
+    ])
+
+    res.json({
+      users: {
+        total: totalUsers,
+      },
+
+      transactions: {
+        total: totalTransactions,
+      },
+
+      kyc: {
+        pending: pendingKycUsers,
+        approved: approvedKycUsers,
+        rejected: rejectedKycUsers,
+      },
+    })
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message })
   }
-};
+}
 
 // --------------------------------------------------
 // EVENTS

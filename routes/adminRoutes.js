@@ -2,6 +2,7 @@ import express from "express";
 import { adminProtect } from "../middleware/adminAuthMiddleware.js";
 import {
   getAllUsers,
+  getUserById,
   getPendingKyc,
   getUsersWithPendingKyc,
   approveKyc,
@@ -21,6 +22,7 @@ router.use(adminProtect);
 
 // USERS
 router.get("/users", getAllUsers);
+router.get("/users/:userId", getUserById);
 router.get("/users/kyc-pending", getUsersWithPendingKyc);
 router.put("/users/:userId/role", setUserRole);
 

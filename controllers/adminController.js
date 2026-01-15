@@ -34,6 +34,25 @@ export const getAllUsers = async (req, res) => {
 };
 
 // --------------------------------------------------
+// SINGLE USER DETAILS (ADMIN)
+// --------------------------------------------------
+export const getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select("-passwordHash");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// --------------------------------------------------
 // KYC
 // --------------------------------------------------
 // adminController.js

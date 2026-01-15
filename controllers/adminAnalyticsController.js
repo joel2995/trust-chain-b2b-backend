@@ -77,3 +77,56 @@ export const getAdminAnalytics = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+// --------------------------------------------------
+// PLATFORM SUCCESS RATE (MONTHLY KYC SUCCESS)
+// --------------------------------------------------
+export const getPlatformSuccessRate = async (req, res) => {
+  try {
+    const monthsBack = 6
+    const results = []
+
+    const now = new Date()
+
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const startOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() - i,
+        1
+      )
+
+      const endOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() - i + 1,
+        0,
+        23,
+        59,
+        59
+      )
+
+      const [totalUsers, verifiedUsers] = await Promise.all([
+        User.countDocuments({ createdAt: { $lte: endOfMonth } }),
+        User.countDocuments({
+          createdAt: { $lte: endOfMonth },
+          kycStatus: "verified",
+        }),
+      ])
+
+      const rate =
+        totalUsers === 0
+          ? 0
+          : Math.round((verifiedUsers / totalUsers) * 100)
+
+      results.push({
+        month: startOfMonth.toLocaleString("en-US", { month: "short" }),
+        rate,
+      })
+    }
+
+    res.json(results)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}

@@ -3,7 +3,7 @@ import { adminProtect } from "../middleware/adminAuthMiddleware.js";
 import {
   getAllUsers,
   getUserById,
-  getPendingKyc,
+  getPendingKyc,  
   getUsersWithPendingKyc,
   approveKyc,
   rejectKyc,
@@ -14,7 +14,7 @@ import {
 } from "../controllers/adminController.js";
 
 import { getAdminDashboardSummary } from "../controllers/adminDashboardController.js";
-import { getAdminAnalytics } from "../controllers/adminAnalyticsController.js";
+import { getAdminAnalytics, getPlatformSuccessRate, } from "../controllers/adminAnalyticsController.js";
 
 const router = express.Router();
 
@@ -37,7 +37,7 @@ router.get("/transactions", getAllTransactions);
 // DASHBOARD & ANALYTICS
 router.get("/dashboard/summary", getAdminDashboardSummary);
 router.get("/analytics", getAdminAnalytics);
-
+router.get("/analytics/platform-success", getPlatformSuccessRate)
 // SYSTEM
 router.get("/stats", getAdminStats);
 router.get("/events", getEvents);

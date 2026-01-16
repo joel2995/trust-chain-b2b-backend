@@ -7,6 +7,10 @@ import { storeProofOnChain } from "../services/blockchainService.js";
 
 export const uploadKycDoc = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ msg: "Unauthorized" })
+    }
+    
     if (!req.file) {
       return res.status(400).json({ msg: "No file uploaded" });
     }

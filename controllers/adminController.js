@@ -78,15 +78,44 @@ export const getPendingKyc = async (req, res) => {
 // --------------------------------------------------
 export const getUsersWithPendingKyc = async (req, res) => {
   try {
+    // 1️⃣ Get users whose KYC is pending
     const users = await User.find({ kycStatus: "pending" })
-      .select("name email phone role kycStatus createdAt");
+      .select("name email createdAt")
+      .sort({ createdAt: 1 })
 
-    res.json(users);
+    // 2️⃣ Attach latest KYC document (if any)
+    const result = await Promise.all(
+      users.map(async (user) => {
+        const kyc = await KYC.findOne({ userId: user._id })
+
+        const latestDoc =
+          kyc?.docs && kyc.docs.length > 0
+            ? kyc.docs[kyc.docs.length - 1]
+            : null
+
+        return {
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          kycStatus: "pending",
+
+          // 🔥 THIS ENABLES REVIEW BUTTON
+          documentType: latestDoc?.type || null,
+          documentCid: latestDoc?.cid || null,
+          documentUrl: latestDoc
+            ? `https://gateway.pinata.cloud/ipfs/${latestDoc.cid}`
+            : null,
+          submittedAt: latestDoc?.uploadedAt || null,
+        }
+      })
+    )
+
+    res.json(result)
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("getUsersWithPendingKyc error:", err)
+    res.status(500).json({ error: "Failed to fetch pending KYC users" })
   }
-};
-
+}
 
 
 export const approveKyc = async (req, res) => {

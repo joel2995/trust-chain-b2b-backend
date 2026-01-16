@@ -22,8 +22,8 @@ router.use(adminProtect);
 
 // USERS
 router.get("/users", getAllUsers);
-router.get("/users/:userId", getUserById);
 router.get("/users/kyc-pending", getUsersWithPendingKyc);
+router.get("/users/:userId", getUserById);
 router.put("/users/:userId/role", setUserRole);
 
 // KYC

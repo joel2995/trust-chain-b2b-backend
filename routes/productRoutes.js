@@ -17,10 +17,10 @@ const router = express.Router();
 
 // Marketplace
 router.get("/", getProducts);
-router.get("/:id", getProductById);
-
 // Vendor dashboard
 router.get("/my", protect, getMyProducts);
+
+router.get("/:id", getProductById);
 
 // Product CRUD
 router.post("/", protect, createProduct);

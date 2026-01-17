@@ -96,16 +96,21 @@ export const deleteProduct = async (req, res) => {
 };
 
 export const getMyProducts = async (req, res) => {
-  if (req.user.role !== "vendor") {
-    return res.status(403).json({ msg: "Only vendors can access this" });
+  try {
+    if (req.user.activeRole !== "vendor") {
+      return res.status(403).json({ msg: "Only vendors can access this" });
+    }
+
+    const products = await Product.find({
+      vendorId: req.user._id,
+    });
+
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  const products = await Product.find({
-    vendorId: req.user._id,
-  });
-
-  res.json(products);
 };
+
 
 
 export const replaceProductImage = async (req, res) => {
